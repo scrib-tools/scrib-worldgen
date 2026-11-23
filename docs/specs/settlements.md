@@ -42,7 +42,7 @@ Site folder, format 1 (metres, x east, y north, raster row 0 = north edge):
   textured as road or path, optional).
 - `claim` (arm A only): `footprints: [{ id, kind, polygon: [[x, y], ...] }]` with `kind` one of `building`, `wall`,
   `bridge`, `stairs`, `other` (the exporter's classification; polygon = convex hull of the reference's mesh vertices
-  projected on the ground, world-transformed), `doors: [{ id, at: [x, y], facing_deg }]`.
+  projected on the ground, world-transformed); `doors: [{ id, at: [x, y], facing_deg }]` later (Milestone 2).
 The tool, not the exporter, derives Magna Urbis's `Claim` from it (land = footprints closed over the streets between
 them, exits = road texels crossing the land edge): generic logic lives in the tool.
 
@@ -69,18 +69,21 @@ cultures need a `catalogue.json` entry and a Rust table row; a kept-core input),
 
 - **ST-1 (Scrib, GPL): site export of vanilla Balmora.** A `bevyrrowind worldgen-site` subcommand writing a site
   folder from the vanilla exterior: heights, water, roads, and the claim of one named anchor (Balmora), everything
-  else left out. Test: round-trip of the format, Balmora's footprint and door counts printed, water on both sides of
-  its centre.
+  else left out (no doors yet). Test: round-trip of the format, Balmora's footprint count printed, water on both
+  sides of its centre.
 - **ST-2 (Scrib, GPL): site export from the 10x guide.** Same command, source `x10s`: a crop around the Odai reach
   nearest Balmora's mapped position, heights without the anchor stamp, upsampled to the site spacing; no claim.
-- **ST-3 (this repo): `settle` CLI on Magna Urbis.** Reads a site folder + recipe, builds Magna Urbis's surface,
-  claim and site, runs quarters and parcels, writes the layout folder and sheet. Test: a synthetic site fixture (slope,
-  straight river, three footprints) gives lots, none inside the claim land, identical output for one seed.
+- **ST-3a (this repo): `settle` CLI on Magna Urbis.** Reads a site folder + recipe, builds Magna Urbis's surface and
+  site, runs quarters and parcels, writes the layout folder and sheet. Test: a synthetic site fixture (slope, straight
+  river) gives streets and lots on both banks, identical output for one seed.
+- **ST-3b (this repo): the kept town as a claim.** Land from the footprints, exits from road texels at the land edge,
+  passed as Magna Urbis's `Claim`. Test: fixture with three footprints and one road: no lot inside the land, a street
+  joins the exit.
 - **ST-4 (runs): the Milestone 1 sheets** for arms A and B, a few cultures each, handed to the owner.
 - **Later:** Morrowind cultures (vendored Magna Urbis); prefab kit catalogue from Morrowind's meshes (footprint, door
   side, storeys); placement on lots; the generated mod; the two scenes in game.
 
-ST-1 and ST-3 run in parallel (the format above is the contract); ST-2 after ST-1.
+ST-1 and ST-3a run in parallel (the format above is the contract); ST-2 after ST-1, ST-3b after ST-3a.
 
 ## Open questions (owner, player-facing; not needed for Milestone 1)
 
