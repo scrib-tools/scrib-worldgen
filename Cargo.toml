@@ -1,0 +1,35 @@
+[workspace]
+resolver = "3"
+members = ["crates/settle"]
+
+[workspace.package]
+edition = "2024"
+license = "AGPL-3.0-or-later"
+publish = false
+
+[workspace.dependencies]
+# Magna Urbis, unmodified, pinned (docs/specs/settlements.md "Reuse check"). AGPL-3.0-only.
+magna-urbis-core = { git = "https://github.com/dunkean/magna-urbis", rev = "21e22171f0b1766650b2cfef5d4bdaf574a1d325" }
+# Its planar geometry crate, same commit (already in the graph through magna-urbis-core).
+magna-urbis-geom = { git = "https://github.com/dunkean/magna-urbis", rev = "21e22171f0b1766650b2cfef5d4bdaf574a1d325" }
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+toml = "1.2.2"
+clap = { version = "4.6.9", features = ["derive"] }
+tiny-skia = { version = "0.12.0", default-features = false, features = ["std", "simd", "png-format"] }
+blake3 = "1.8.7"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+module_name_repetitions = "allow"
+
+# Magna Urbis is heavy geometry: full speed in dev and test builds, our own crates stay quick to rebuild.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+opt-level = 3
+debug = false

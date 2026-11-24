@@ -1,0 +1,118 @@
+# Example recipe for `settle` (docs/specs/settlements.md "Tunables"). Every value carries its unit and its source;
+# `Guess` is allowed and counted, as in Scrib's superfargoth/docs/specs/tunables.md.
+
+[cultures]
+value = ["european-organic", "medina", "korean"]
+unit = "Magna Urbis culture id"
+source = "Guess: three contrasting tissues (organic, dense walled, grid) for a first side-by-side; ids from Magna Urbis urban/catalogue.json"
+
+[population]
+value = 3000
+unit = "inhabitants"
+source = "Guess: a market town; Balmora is about 1000-2000 in game terms (Scrib docs/research/settlements-magna-urbis-2026-11-23.md section 5)"
+
+[seed]
+value = "settle-example-1"
+unit = "seed string"
+source = "Guess"
+
+[crop_radius_m]
+value = 1000.0
+unit = "m (half side of the square crop, centred on centre_m)"
+source = "Guess: about twice Magna Urbis's extent_radius(3000) of 462 m, which also searches up to 2-2.5 radii (geography.rs:651, harbour.rs:169)"
+
+[raster_spacing_m]
+value = 5.0
+unit = "m per planning cell"
+source = "Guess: a 30 m river spans 6 cells; Magna Urbis routes water on this grid (surface.rs:91)"
+
+[site_radius_m]
+value = 0.0
+unit = "m (0 = Magna Urbis settlements::extent_radius(population))"
+source = "Magna Urbis settlements/mod.rs:655"
+
+[water_class]
+value = "river"
+unit = "Magna Urbis water class (sea | lake | river)"
+source = "Guess: inland site; codes from Magna Urbis settlements/placement.rs:1120-1124"
+
+[relief_scale]
+value = 1.0
+unit = "ratio (planned height above the water level / site height above it)"
+source = "Guess: a site whose terrain has real-world grades (Magna Urbis streets climb at most 12 %, urban/config.rs:342); a game terrain steeper than that sets less (recipes/balmora-vanilla.toml)"
+
+[min_water_area_m2]
+value = 2500.0
+unit = "m2 (4-connected water body on the site raster)"
+source = "Guess: one 50 m cell, the region cell of Magna Urbis's placement tests (settlements/placement.rs:1146), so no body below its region resolution reaches the town stage; drops puddle-sized swamp pools"
+
+[sheet_m_per_px]
+value = 2.0
+unit = "m per pixel"
+source = "Guess: a 2 km crop is a 1000 px sheet, lots of 10 m wide stay readable"
+
+# The kept town (site.json `claim`, arm A) as Magna Urbis's Claim (crates/settle/src/claim.rs). Ignored by sites
+# without a claim.
+[claim.cell_m]
+value = 1.0
+unit = "m per raster cell"
+source = "Guess: a third of Magna Urbis's own claim cell (urban/neighbours.rs:57, 3 m), so 3-5 m alleys between kept buildings resolve"
+
+[claim.margin_m]
+value = 4.0
+unit = "m (footprints grown by it before closing)"
+source = "Guess: the yard, eaves and doorstep a kept building holds; Magna Urbis adds its own 8 m clear band beyond the land (urban/neighbours.rs:53)"
+
+[claim.close_m]
+value = 12.0
+unit = "m (closing radius)"
+source = "Magna Urbis's claim closing (urban/neighbours.rs:59): blocks across a street merge into one outline"
+
+[claim.simplify_m]
+value = 2.0
+unit = "m (Douglas-Peucker tolerance of outlines and exits)"
+source = "Magna Urbis's claim simplification (urban/neighbours.rs:61)"
+
+[claim.min_hole_m2]
+value = 2500.0
+unit = "m2"
+source = "Magna Urbis's claim hole fill (urban/neighbours.rs:63)"
+
+[claim.min_land_m2]
+value = 200.0
+unit = "m2"
+source = "Guess: Magna Urbis drops claim pieces under 100 m2 (urban/neighbours.rs:64); a lone prop grown by the margin is 50-80 m2, a lone hut about 250 m2"
+
+[claim.exit_in_m]
+value = 60.0
+unit = "m (exit length inside the kept land)"
+source = "Magna Urbis's claim street stub (urban/neighbours.rs:67)"
+
+[claim.exit_out_m]
+value = 60.0
+unit = "m (exit traced outward along road texels)"
+source = "Magna Urbis's claim street stub (urban/neighbours.rs:67); its join reaches 40 m beyond (:71)"
+
+[claim.exit_min_m]
+value = 20.0
+unit = "m (shortest outward run of an exit)"
+source = "Guess: Magna Urbis's edge distance for a dead end pointing out (urban/neighbours.rs:68); shorter runs are roads along the edge"
+
+[claim.exit_merge_m]
+value = 20.0
+unit = "m (outer ends closer than this are one exit)"
+source = "Guess: about two road widths, so a road leaving through two gaps is one exit"
+
+[claim.exit_width_m]
+value = 5.0
+unit = "m (exit street width)"
+source = "Guess: Magna Urbis's street width for a routed access street (urban/footprint/generate.rs:102)"
+
+[claim.join_tolerance_m]
+value = 1.0
+unit = "m (a new street ending this close to an exit joins it; stats only)"
+source = "Guess: Magna Urbis's connectors end exactly on the claim street (urban/neighbours.rs:513, :536); 1 m leaves float room"
+
+# Magna Urbis's own options (camelCase, as its LayoutConfig / ParcelConfig name them); empty = its defaults.
+[magna_urbis.layout]
+[magna_urbis.parcels]

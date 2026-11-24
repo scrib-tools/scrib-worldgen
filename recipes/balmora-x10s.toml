@@ -1,0 +1,154 @@
+# Arm B, Balmora 2.0 (docs/specs/settlements.md "First comparison"): no kept part, both banks of the new Odai in the 10x world.
+# Same values as arm A except crop, the absent claim (the [claim] table is unused without a site claim) and the founding
+# [crossing] (arm A gets its regional roads from the claim exits). Relief 0.25 as arm A (ST-3e, see its source).
+# Recipe for `settle` (docs/specs/settlements.md "Tunables"). Every value carries its unit and its source;
+# `Guess` is allowed and counted, as in Scrib's superfargoth/docs/specs/tunables.md.
+
+[cultures]
+value = ["european-organic", "medina", "korean"]
+unit = "Magna Urbis culture id"
+source = "Guess: three contrasting tissues (organic, dense walled, grid) for a first side-by-side; ids from Magna Urbis urban/catalogue.json"
+
+[population]
+value = 3000
+unit = "inhabitants"
+source = "Same as arm A (recipes/balmora-vanilla.toml, where 3000 gave about 10x the kept built area), so the two arms compare at one size"
+
+[seed]
+value = "settle-example-1"
+unit = "seed string"
+source = "Guess"
+
+[crop_radius_m]
+value = 1400.0
+unit = "m (half side of the square crop, centred on centre_m)"
+source = "Guess: the ST-2 site keeps ~1 km of ground around a town of 10x vanilla Balmora's built area (~1.1 x 0.6 km); the site crop is 1500 m"
+
+[raster_spacing_m]
+value = 5.0
+unit = "m per planning cell"
+source = "Guess: a 30 m river spans 6 cells; Magna Urbis routes water on this grid (surface.rs:91)"
+
+[site_radius_m]
+value = 0.0
+unit = "m (0 = Magna Urbis settlements::extent_radius(population))"
+source = "Magna Urbis settlements/mod.rs:655"
+
+[water_class]
+value = "river"
+unit = "Magna Urbis water class (sea | lake | river)"
+source = "Guess: inland site; codes from Magna Urbis settlements/placement.rs:1120-1124"
+
+[relief_scale]
+value = 0.25
+unit = "ratio (planned height above the water level / site height above it)"
+source = "Measured 2026-11-24 (ST-3e) on target/worldgen/sites/balmora-x10s: the river runs in a gorge (banks 23-25 m above the water, terraces between cliff bands); the 300 m disk median slope 0.083 hides it (p75 0.455), the dry ground within 300 m of the channel has median 0.21-0.22, only ~40 % under Magna Urbis's 0.12 street grade (urban/config.rs:342). At 1.0 no quarter street routes (107 lots, one bank); 0.5 still leaves one bank for all three cultures; 0.25 (arm A's value) gives both. A planning stand-in for terrain grading (docs/specs/settlements.md Relief)"
+
+[min_water_area_m2]
+value = 2500.0
+unit = "m2 (4-connected water body on the site raster)"
+source = "Guess: one 50 m cell, the region cell of Magna Urbis's placement tests (settlements/placement.rs:1146), so no body below its region resolution reaches the town stage; drops puddle-sized swamp pools"
+
+[sheet_m_per_px]
+value = 2.0
+unit = "m per pixel"
+source = "Guess: a 2 km crop is a 1000 px sheet, lots of 10 m wide stay readable"
+
+# The founding crossing (crates/settle/src/crossing.rs): the regional road Magna Urbis's region stage would give a
+# river town, which its town stage spans the river through (urban/footprint/growth.rs:219). Arm B has no claim, so no
+# road: a cliff-banked river kept the town on one bank (ST-3e, tests/gorge_river.rs).
+[crossing.search_m]
+value = 300.0
+unit = "m (nearest water the crossing starts from, from the centre)"
+source = "Guess: about Magna Urbis's extent radius for 3000 people (settlements/mod.rs:655, 271 m); a town farther from water is not a river town"
+
+[crossing.max_span_m]
+value = 400.0
+unit = "m of water along the crossing line"
+source = "Magna Urbis's longest urban crossing span (urban/footprint/crossings.rs:133, clamp 400 m); wider water is a lake or sea, not bridged"
+
+[crossing.angle_step_deg]
+value = 5.0
+unit = "degrees between the crossing lines tried"
+source = "Guess: at 5 degrees a 200 m span is within 0.1 % of its perpendicular width"
+
+[crossing.reach_m]
+value = 1000.0
+unit = "m of road each way from the crossing's middle (clipped to the crop)"
+source = "Magna Urbis's own river-town tests feed a straight regional road of 1-2 km (urban/kinds_camp_mapping_tests.rs:12, urban/footprint/crossings.rs:1002)"
+
+[crossing.width_m]
+value = 6.0
+unit = "m (carriageway)"
+source = "Magna Urbis's regional road width in its town tests (urban/kinds_camp_mapping_tests.rs:12, urban/composition_faubourgs_tests.rs:7)"
+
+[crossing.rank]
+value = 1
+unit = "Magna Urbis street rank (0 highway, 1 main, 2 local)"
+source = "A main road between towns: rank 1 for the 'main' class in Magna Urbis's regional streets (rust/bridge/urbanRoads.ts:11)"
+
+# The kept town (site.json `claim`, arm A) as Magna Urbis's Claim (crates/settle/src/claim.rs). Ignored by sites
+# without a claim.
+[claim.cell_m]
+value = 1.0
+unit = "m per raster cell"
+source = "Guess: a third of Magna Urbis's own claim cell (urban/neighbours.rs:57, 3 m), so 3-5 m alleys between kept buildings resolve"
+
+[claim.margin_m]
+value = 4.0
+unit = "m (footprints grown by it before closing)"
+source = "Guess: the yard, eaves and doorstep a kept building holds; Magna Urbis adds its own 8 m clear band beyond the land (urban/neighbours.rs:53)"
+
+[claim.close_m]
+value = 12.0
+unit = "m (closing radius)"
+source = "Magna Urbis's claim closing (urban/neighbours.rs:59): blocks across a street merge into one outline"
+
+[claim.simplify_m]
+value = 2.0
+unit = "m (Douglas-Peucker tolerance of outlines and exits)"
+source = "Magna Urbis's claim simplification (urban/neighbours.rs:61)"
+
+[claim.min_hole_m2]
+value = 2500.0
+unit = "m2"
+source = "Magna Urbis's claim hole fill (urban/neighbours.rs:63)"
+
+[claim.min_land_m2]
+value = 200.0
+unit = "m2"
+source = "Guess: Magna Urbis drops claim pieces under 100 m2 (urban/neighbours.rs:64); a lone prop grown by the margin is 50-80 m2, a lone hut about 250 m2"
+
+[claim.exit_in_m]
+value = 60.0
+unit = "m (exit length inside the kept land)"
+source = "Magna Urbis's claim street stub (urban/neighbours.rs:67)"
+
+[claim.exit_out_m]
+value = 60.0
+unit = "m (exit traced outward along road texels)"
+source = "Magna Urbis's claim street stub (urban/neighbours.rs:67); its join reaches 40 m beyond (:71)"
+
+[claim.exit_min_m]
+value = 20.0
+unit = "m (shortest outward run of an exit)"
+source = "Guess: Magna Urbis's edge distance for a dead end pointing out (urban/neighbours.rs:68); shorter runs are roads along the edge"
+
+[claim.exit_merge_m]
+value = 20.0
+unit = "m (outer ends closer than this are one exit)"
+source = "Guess: about two road widths, so a road leaving through two gaps is one exit"
+
+[claim.exit_width_m]
+value = 5.0
+unit = "m (exit street width)"
+source = "Guess: Magna Urbis's street width for a routed access street (urban/footprint/generate.rs:102)"
+
+[claim.join_tolerance_m]
+value = 1.0
+unit = "m (a new street ending this close to an exit joins it; stats only)"
+source = "Guess: Magna Urbis's connectors end exactly on the claim street (urban/neighbours.rs:513, :536); 1 m leaves float room"
+
+# Magna Urbis's own options (camelCase, as its LayoutConfig / ParcelConfig name them); empty = its defaults.
+[magna_urbis.layout]
+[magna_urbis.parcels]
