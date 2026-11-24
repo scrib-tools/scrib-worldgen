@@ -1,6 +1,9 @@
 [workspace]
 resolver = "3"
-members = ["crates/settle"]
+members = ["crates/settle", "crates/water", "crates/roads"]
+# Vendored Magna Urbis is its own nested workspace (vendor/magna-urbis/rust/Cargo.toml): not our member,
+# so our lints and clippy never apply to its code.
+exclude = ["vendor"]
 
 [workspace.package]
 edition = "2024"
@@ -8,10 +11,13 @@ license = "AGPL-3.0-or-later"
 publish = false
 
 [workspace.dependencies]
-# Magna Urbis, unmodified, pinned (docs/specs/settlements.md "Reuse check"). AGPL-3.0-only.
-magna-urbis-core = { git = "https://github.com/dunkean/magna-urbis", rev = "21e22171f0b1766650b2cfef5d4bdaf574a1d325" }
-# Its planar geometry crate, same commit (already in the graph through magna-urbis-core).
-magna-urbis-geom = { git = "https://github.com/dunkean/magna-urbis", rev = "21e22171f0b1766650b2cfef5d4bdaf574a1d325" }
+# Magna Urbis, vendored at upstream rev 21e22171f0b1766650b2cfef5d4bdaf574a1d325 (docs/specs/settlements.md
+# "Reuse check"; vendor/magna-urbis/VENDOR.md lists every local patch). AGPL-3.0-only.
+magna-urbis-core = { path = "vendor/magna-urbis/rust/crates/core" }
+# Its planar geometry crate (already in the graph through magna-urbis-core).
+magna-urbis-geom = { path = "vendor/magna-urbis/rust/crates/geom" }
+# Its terrain crate (the V2 water chain, `vector_water::condition_and_water`); used by `crates/water`.
+magna-urbis-terrain = { path = "vendor/magna-urbis/rust/crates/terrain" }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
 toml = "1.2.2"

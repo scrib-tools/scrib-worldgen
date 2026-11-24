@@ -1,0 +1,144 @@
+# Culture pack `hlaalu` (settle `[culture_packs]`, crates/settle/src/culture_packs.rs): Magna Urbis's
+# `mediterranean-modern` (same family, street grammar, plan, nucleus, enclosures, harbours, palette, forms kit) with
+# house sizes from the Hlaalu house kit, so the footprints Magna Urbis plans hold those houses. Was vendored-data
+# patch 01 (vendor/magna-urbis/VENDOR.md), moved here 2026-11-24.
+#
+# Format: a Magna Urbis data pack in TOML (vendor/magna-urbis/rust/crates/core/src/data.rs): `{ <document>: <patch> }`,
+# JSON Merge Patch plus `"$from"` (deep copy of a node of the same document, then the rest merged onto it) and
+# `"$append"` (add missing items to an array). Arrays otherwise replace whole. JSON pointers escape `/` as `~1`.
+#
+# Kit source for every size below: C:/cargo-target/scrib/worldgen/kit/hlaalu-bs/kit.json, 27 house models, oriented
+# boxes 7.8-11.1 m x 10.2-23.7 m, 80-264 m2, most 8 x 12-16 m. These are preset values: the layout's density scales
+# them at MU urban/morph.rs:137; at density 2 (recipe balmora2-x10s-b2w) frontage is x0.68, plotDepth x0.78 and
+# houseArea x0.88.
+#
+# Per preset, the values that differ from mediterranean-modern's:
+# - frontage core/middle/edge/faubourg [13, 19] m: effective 8.8-12.9 m, for the kit's 7.8-11.1 m short side (MU's
+#   `densify` pulls it to the minimum, so the minimum must hold a house). Faubourg preset edge/faubourg [18, 25]:
+#   detached houses with 2-4 m side gaps. Village zone keeps the clone's [12, 24].
+# - plotDepth same zones [26, 36] m: effective 20-28 m, the house depth plus a yard and a back body. Faubourg preset
+#   edge/faubourg [31, 41] (setback 4-7 m).
+# - houseArea (lot area) same zones [200, 410] m2: effective 176-361 m2 = frontage x plotDepth. Faubourg preset
+#   edge/faubourg [330, 600].
+# - buildDepth every zone [12, 18] m: x0.9-1.15 at MU parcels/occupation.rs:2468, so 10.8-20.7 m, for the kit's
+#   10.2-23.7 m long sides.
+# - roomDepth [8, 11] m: body width, the kit's 7.8-11.1 m short sides.
+# - minWing 8 m (MU occupation.rs:2247, 2479; default 3): every body, rear wing and back building is at least the
+#   width of the kit's narrowest house (7.8 m).
+# - minFrontage 8.4 m (MU mu-patch 03, parcels/admission.rs `with_min_frontage`; absent = the borrowed EUR-MED recipe's
+#   ~5.6 m witness): the kit's narrowest house side, 7.8 m, plus MU's 0.3 m clearance each side (urban/culture.rs:578).
+#   Not scaled by density. No lot with a street front under it is cut or admitted; MU's pressure floor then keeps
+#   frontage >= 1.15x it (parcels/pressure.rs:282).
+# Measured on Balmora 2.0 (settle, recipe balmora2-x10s-b2w, site c1): 789 of 1299 footprints hold a 7.8 x 10.2 m box
+# (61%; mediterranean-modern 786 of 1806, 44%), short side p50 9.3 m (was 7.3). With minFrontage (2026-11-24, C-5s):
+# street-front dwelling lots under 8 m 84 -> 0 (min 5.9 -> 8.4 m), 767 of 1214 footprints hold the box (63%).
+
+# ---- catalogue: the five presets -------------------------------------------------------------------------------
+
+[catalogue.presets."hlaalu/core"]
+"$from" = "/presets/mediterranean-modern~1core"
+label = "Hlaalu town (kit-sized houses on a mediterranean-modern base) · Cœur"
+[catalogue.presets."hlaalu/core".params]
+id = "hlaalu/core"
+roomDepth = [8, 11] # kit short sides 7.8-11.1 m
+minWing = 8         # kit's narrowest house, 7.8 m
+minFrontage = 8.4   # kit's narrowest house side 7.8 m + 0.3 m each side (MU culture.rs:578 clearance); mu-patch 03
+frontage = { core = [13, 19], middle = [13, 19], edge = [13, 19], faubourg = [13, 19] }     # kit short side 7.8-11.1 m at x0.68
+plotDepth = { core = [26, 36], middle = [26, 36], edge = [26, 36], faubourg = [26, 36] }   # house depth + yard + back body at x0.78
+houseArea = { core = [200, 410], middle = [200, 410], edge = [200, 410], faubourg = [200, 410] } # frontage x plotDepth at x0.88
+buildDepth = { core = [12, 18], middle = [12, 18], edge = [12, 18], faubourg = [12, 18], village = [12, 18] } # kit long sides 10.2-23.7 m
+
+[catalogue.presets."hlaalu/ring"]
+"$from" = "/presets/mediterranean-modern~1ring"
+label = "Hlaalu town (kit-sized houses on a mediterranean-modern base) · Extension"
+[catalogue.presets."hlaalu/ring".params]
+id = "hlaalu/ring"
+roomDepth = [8, 11] # kit short sides 7.8-11.1 m
+minWing = 8         # kit's narrowest house, 7.8 m
+minFrontage = 8.4   # kit's narrowest house side 7.8 m + 0.3 m each side (MU culture.rs:578 clearance); mu-patch 03
+frontage = { core = [13, 19], middle = [13, 19], edge = [13, 19], faubourg = [13, 19] }     # kit short side 7.8-11.1 m at x0.68
+plotDepth = { core = [26, 36], middle = [26, 36], edge = [26, 36], faubourg = [26, 36] }   # house depth + yard + back body at x0.78
+houseArea = { core = [200, 410], middle = [200, 410], edge = [200, 410], faubourg = [200, 410] } # frontage x plotDepth at x0.88
+buildDepth = { core = [12, 18], middle = [12, 18], edge = [12, 18], faubourg = [12, 18], village = [12, 18] } # kit long sides 10.2-23.7 m
+
+[catalogue.presets."hlaalu/faubourg"]
+"$from" = "/presets/mediterranean-modern~1faubourg"
+label = "Hlaalu town (kit-sized houses on a mediterranean-modern base) · Faubourg"
+[catalogue.presets."hlaalu/faubourg".params]
+id = "hlaalu/faubourg"
+roomDepth = [8, 11] # kit short sides 7.8-11.1 m
+minWing = 8         # kit's narrowest house, 7.8 m
+minFrontage = 8.4   # kit's narrowest house side 7.8 m + 0.3 m each side (MU culture.rs:578 clearance); mu-patch 03
+# edge/faubourg: detached kit houses (7.8-11.1 m fronts) with 2-4 m side gaps, setback 4-7 m
+frontage = { core = [13, 19], middle = [13, 19], edge = [18, 25], faubourg = [18, 25] }
+plotDepth = { core = [26, 36], middle = [26, 36], edge = [31, 41], faubourg = [31, 41] }
+houseArea = { core = [200, 410], middle = [200, 410], edge = [330, 600], faubourg = [330, 600] }
+buildDepth = { core = [12, 18], middle = [12, 18], edge = [12, 18], faubourg = [12, 18], village = [12, 18] } # kit long sides 10.2-23.7 m
+
+[catalogue.presets."hlaalu/village"]
+"$from" = "/presets/mediterranean-modern~1village"
+label = "Hlaalu town (kit-sized houses on a mediterranean-modern base) · Village"
+[catalogue.presets."hlaalu/village".params]
+id = "hlaalu/village"
+roomDepth = [8, 11] # kit short sides 7.8-11.1 m
+minWing = 8         # kit's narrowest house, 7.8 m
+minFrontage = 8.4   # kit's narrowest house side 7.8 m + 0.3 m each side (MU culture.rs:578 clearance); mu-patch 03
+frontage = { core = [13, 19], middle = [13, 19], edge = [13, 19], faubourg = [13, 19] }     # kit short side 7.8-11.1 m at x0.68
+plotDepth = { core = [26, 36], middle = [26, 36], edge = [26, 36], faubourg = [26, 36] }   # house depth + yard + back body at x0.78
+houseArea = { core = [200, 410], middle = [200, 410], edge = [200, 410], faubourg = [200, 410] } # frontage x plotDepth at x0.88
+buildDepth = { core = [12, 18], middle = [12, 18], edge = [12, 18], faubourg = [12, 18], village = [12, 18] } # kit long sides 10.2-23.7 m
+
+[catalogue.presets."hlaalu/hamlet"]
+"$from" = "/presets/mediterranean-modern~1hamlet"
+label = "Hlaalu town (kit-sized houses on a mediterranean-modern base) · Hameau"
+[catalogue.presets."hlaalu/hamlet".params]
+id = "hlaalu/hamlet"
+roomDepth = [8, 11] # kit short sides 7.8-11.1 m
+minWing = 8         # kit's narrowest house, 7.8 m
+minFrontage = 8.4   # kit's narrowest house side 7.8 m + 0.3 m each side (MU culture.rs:578 clearance); mu-patch 03
+frontage = { core = [13, 19], middle = [13, 19], edge = [13, 19], faubourg = [13, 19] }     # kit short side 7.8-11.1 m at x0.68
+plotDepth = { core = [26, 36], middle = [26, 36], edge = [26, 36], faubourg = [26, 36] }   # house depth + yard + back body at x0.78
+houseArea = { core = [200, 410], middle = [200, 410], edge = [200, 410], faubourg = [200, 410] } # frontage x plotDepth at x0.88
+buildDepth = { core = [12, 18], middle = [12, 18], edge = [12, 18], faubourg = [12, 18], village = [12, 18] } # kit long sides 10.2-23.7 m
+
+# ---- catalogue: the culture and its farmstead ------------------------------------------------------------------
+
+[catalogue.cultures.hlaalu]
+"$from" = "/cultures/mediterranean-modern"
+label = "Hlaalu town (kit-sized houses on a mediterranean-modern base)"
+# Restated whole (arrays replace): the clone's recipes point at its own presets; ids, labels, zones as the clone's.
+recipes = [
+  { id = "core", label = "Cœur", zone = "core", preset = "hlaalu/core" },
+  { id = "ring", label = "Extension", zone = "middle", preset = "hlaalu/ring" },
+  { id = "faubourg", label = "Faubourg", zone = "faubourg", preset = "hlaalu/faubourg" },
+  { id = "village", label = "Village", zone = "village", preset = "hlaalu/village" },
+  { id = "hamlet", label = "Hameau", zone = "village", preset = "hlaalu/hamlet" },
+]
+
+[catalogue.farmstead.cultures.hlaalu]
+"$from" = "/farmstead/cultures/mediterranean-modern"
+
+# ---- the culture -> architecture route (as mediterranean-modern: frontage, EUR-MED) -----------------------------
+
+[culture_mappings.cultures.hlaalu]
+"$from" = "/cultures/mediterranean-modern"
+
+# ---- family lists, services, styles (as mediterranean-modern) --------------------------------------------------
+
+[activities.cultures.families.industrial.cultures]
+"$append" = ["hlaalu"]
+
+[enclosures.groups.openStreetClosedBack.cultures]
+"$append" = ["hlaalu"]
+
+[harbours.families.contemporary.cultures]
+"$append" = ["hlaalu"]
+
+[services.cultures]
+hlaalu = "industrial" # mediterranean-modern's
+
+[styles_modern.palettes.hlaalu]
+"$from" = "/palettes/mediterranean-modern"
+
+[styles_modern.cultures.hlaalu]
+"$from" = "/cultures/mediterranean-modern"

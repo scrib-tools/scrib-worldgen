@@ -1,0 +1,61 @@
+# Recipe for `worldgen-roads` on the 10x island (research note docs/research/magna-urbis-roads-2026-11-24.md, "Recommended
+# use" 1-3): Magna Urbis's regional road router between fixed settlements, whole island on one raster (coarse pass:
+# topology, hierarchy, classes). Every value carries its unit and its source; `Guess` is allowed and counted, as in
+# Scrib's superfargoth/docs/specs/tunables.md. Map exits, activity access, network nodes and tunnels are off in code
+# (crates/roads/src/run.rs `road_config`).
+
+[seed]
+value = "x10s-roads-1"
+unit = "seed string"
+source = "Guess"
+
+[raster_n]
+value = 1024
+unit = "cells (side of the square Magna Urbis raster)"
+source = "Magna Urbis's largest raster (settlements/mod.rs:416): ~60 m cells over the ~61 km guide"
+
+[pad_depth_m]
+value = 100.0
+unit = "m below sea level (sea padding the guide out to a square)"
+source = "Guess: any depth reads as open sea; only the sea code matters to the router"
+
+[grid]
+value = 512
+unit = "cells (largest routing grid side; the raster is pooled to it)"
+source = "Magna Urbis default (roads/mod.rs:75); 1024 routes ~10x slower (roads/mod.rs:51)"
+
+[density]
+value = 0.5
+unit = "0 = spanning tree only ... 1 = many loops"
+source = "Magna Urbis default (roads/mod.rs:68)"
+
+[level]
+value = "rural"
+unit = "Magna Urbis development level id (primitive, rural, developed, imperial)"
+source = "Magna Urbis default (roads/mod.rs:65); Guess for Vvardenfell outside the Imperial core"
+
+[sharing]
+value = 0.7
+unit = "0 = every route on its own ... 1 = strong trunk sharing"
+source = "Magna Urbis default (roads/mod.rs:73)"
+
+[crossing_cost]
+value = 1.0
+unit = "x (river and lake crossing cost multiplier)"
+source = "Magna Urbis default (roads/mod.rs:71)"
+
+[landing_search_m]
+value = 2000.0
+unit = "m (largest move of a site's wet centre to its nearest dry routing cell, the landing roads end at)"
+source = "Guess: water towns (Vivec's cantons, Molag Mar, Tel Mora, Dagon Fel, Gnaar Mok, Tel Fyr) stand within a scaled kilometre or two of their shore"
+
+[profiles]
+unit = "sites.json culture -> Magna Urbis road profile id (roads/profile.rs:29)"
+source = "Guess: Dunmer great-house towns wind like medieval roads; Imperial roads are straight and paved (roman); Telvanni follow the contours (elven); Ashlander tracks are narrow and steep (tribal); Dwemer roads are straight and climb hard (dwarven)"
+
+[profiles.value]
+dunmer = "medieval"
+imperial = "roman"
+telvanni = "elven"
+ashlander = "tribal"
+dwemer = "dwarven"

@@ -114,6 +114,132 @@ value = 1.0
 unit = "m (a new street ending this close to an exit joins it; stats only)"
 source = "Guess: Magna Urbis's connectors end exactly on the claim street (urban/neighbours.rs:513, :536); 1 m leaves float room"
 
+# Fitting kit buildings into Magna Urbis's building footprints (crates/settle/src/fit.rs, slice PL-2). The kit path
+# is machine-specific: pass `settle --kit <kit.json>` (or set `kit = "..."` here, relative to this file).
+[fit.slide_step_m]
+value = 1.0
+unit = "m between frontage positions"
+source = "Guess: a tenth of a 10 m house front; finer steps only move a fitted hull, the covered share is per model"
+
+[fit.slide_max]
+value = 9
+unit = "positions per model and turn (centre, then outward both ways)"
+source = "Guess: with 1 m steps, up to 4 m either side of the centre"
+
+[fit.setback_m]
+value = 0.0
+unit = "m (door side behind the footprint's front edge)"
+source = "Magna Urbis draws its footprints on the building line of the lot (urban/building_sites.rs:1371); 0 keeps the door side on it"
+
+[fit.inside_tolerance_m]
+value = 0.05
+unit = "m (a hull may stand this far outside its footprint)"
+source = "Measured 2026-11-24 (PL-0): Magna Urbis's parts stand up to 3 cm outside their lot (tests/common INSIDE_TOLERANCE_M = 0.05)"
+
+[fit.overlap_tolerance_m]
+value = 0.05
+unit = "m (interpenetration still counted as touching)"
+source = "Guess: the same slop as the inside test, so two hulls on a shared footprint edge touch"
+
+[fit.door_probe_m]
+value = 1.0
+unit = "m outside the street door"
+source = "Guess: a doorstep; the pad is the street ground in front of the door"
+
+[fit.ground_sample_m]
+value = 1.0
+unit = "m between ground samples under a hull"
+source = "Guess: about half the site raster cell (1.83 m on balmora-x10s, site.json cell_m), so every cell under a hull is read"
+
+[fit.pad_rise_max_m]
+value = 1.0
+unit = "m (ground above the pad under the hull)"
+source = "Guess: a plinth course; more buries the walls (grading, PL-4, will cut the pad instead)"
+
+[fit.score_margin]
+value = 0.1
+unit = "covered share of the footprint (0..1)"
+source = "Guess: models within 10 points of the best fit are drawn by kit weight, so a row is not one model"
+
+[fit.back_door_tolerance_deg]
+value = 45.0
+unit = "degrees from the first door's opposite"
+source = "Guess: a door nearer the back than a side counts as a back door"
+
+# Joining narrow empty lots along their street until a kit building fits (crates/settle/src/merge.rs, slice PL-3a):
+# the medina's continuous street wall (owner 2026-11-24).
+[merge.max_lots]
+value = 3
+unit = "lots joined under one building"
+source = "Guess: medina parts are ~9 m wide and Hlaalu fronts 6-24 m (kit.json), so three plots cover the widest house"
+
+[merge.max_front_m]
+value = 24.0
+unit = "m of frontage (members' access segments summed)"
+source = "Guess: the widest Hlaalu house front, 23.7 m (ex_hlaalu_b_24 in the balmora kit); a wider group fits nothing more"
+
+[merge.min_shared_m]
+value = 2.0
+unit = "m of shared lot boundary"
+source = "Guess: a party wall, not a corner touch; Magna Urbis's plots share whole side edges"
+
+[merge.shared_tolerance_m]
+value = 0.1
+unit = "m (two lot edges this close are one boundary)"
+source = "Guess: Magna Urbis's partition shares exact edges; 0.1 m leaves float room and is far below any lot width"
+
+[merge.max_angle_deg]
+value = 20.0
+unit = "degrees between two neighbours' street normals"
+source = "Guess: a winding medina lane turns a few degrees per plot; a street corner turns 60-90"
+
+[merge.max_offset_m]
+value = 1.5
+unit = "m (the nearer end of a neighbour's frontage off the other's frontage line; also the street-face reach)"
+source = "Guess: building lines on one lane wander by less than a metre; a lot behind or across a lane is a lot depth away"
+
+[merge.max_gap_m]
+value = 1.0
+unit = "m along the street between two neighbours' street faces"
+source = "Guess: adjacent plots' street faces end on their shared corner (gap 0); 1 m leaves float room"
+
+# Closing the street wall (crates/settle/src/filler.rs, slice PL-3b): kit walls along the lot faces no building
+# covers, arches across lane mouths (owner 2026-11-24: houses, Hlaalu walls between them, and arches).
+[filler.walls]
+value = ["meshes/x/ex_hlaalu_wall_01.nif", "meshes/x/ex_hlaalu_wall_up_01.nif", "meshes/x/ex_hlaalu_wall_up_02.nif"]
+unit = "kit model ids, in order of preference"
+source = "balmora kit.json: the Hlaalu wall pieces (3.66 m long, h 7.5; up_01 3.66 m, h 9.3; up_02 11 m, h 12.9)"
+
+[filler.arches]
+value = ["meshes/x/ex_hlaalu_wall_gate_01.nif", "meshes/x/ex_hlaalu_wall_gate_02.nif", "meshes/x/ex_hlaalu_wall_gate_03.nif"]
+unit = "kit model ids"
+source = "balmora kit.json: the Hlaalu gates (3.66, 5.49 and 7.32 m wide)"
+
+[filler.cover_depth_m]
+value = 6.0
+unit = "m behind the face line"
+source = "Guess: a house stands back from its lot face by the fit's setback plus Magna Urbis's front yard (a few m); a wall must never run in front of it"
+
+[filler.min_gap_m]
+value = 0.5
+unit = "m of uncovered face"
+source = "Guess: below half a metre a gap is float noise or an eave's shadow, not an opening"
+
+[filler.overlap_max_m]
+value = 0.5
+unit = "m (wall run past a building end, pieces over each other, piece into a hull)"
+source = "Guess: about a quarter of the Hlaalu wall's 2.3 m depth; hides inside the end post and the house's wall"
+
+[filler.length_tie_m]
+value = 0.05
+unit = "m between two combinations' summed lengths"
+source = "Guess: 5 cm, below what shows; three 3.66 m pieces and one 11 m piece tie, so the plain wall wins"
+
+[filler.arch_slack_m]
+value = 0.5
+unit = "m each way around the arches' widths"
+source = "Guess: the gate pieces' end posts take half a metre of misfit either way"
+
 # Magna Urbis's own options (camelCase, as its LayoutConfig / ParcelConfig name them); empty = its defaults.
 [magna_urbis.layout]
 [magna_urbis.parcels]

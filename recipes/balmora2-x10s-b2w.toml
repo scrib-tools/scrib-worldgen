@@ -1,0 +1,410 @@
+# Balmora 2.0 on the water-carved guide x10s-b2w (world10x, 2026-11-24): the site comes from x10s-b2 (vanilla Balmora
+# dropped, no valley terrace) after Magna Urbis's water chain (recipes/water-x10s.toml, mode none); the town is planned
+# on true heights with Magna Urbis's own slope tools (terrace tissue, stair streets: docs/research/magna-urbis-slopes-2026-11-24.md
+# ranking 1; st-m2 experiment: medina 923 lots on the true trench). Otherwise the values of balmora2-x10s-b2v.toml.
+
+[cultures]
+value = ["medina"]
+unit = "Magna Urbis culture id"
+source = "Owner 2026-11-24 (density arms, hm): medina streets; earlier: Owner 2026-11-24: medina (continuous street wall); al-andalus and italian-comune are stair cultures with a medina-like tissue (magna-urbis-slopes note §2.3); ids from Magna Urbis urban/catalogue.json"
+
+[culture_packs]
+value = ["cultures/hlaalu.toml"]
+unit = "culture pack files (TOML, relative to this recipe), merged into Magna Urbis's data in order"
+source = "Owner 2026-11-24 (adapt Magna Urbis through data): the `hlaalu` culture of the styleSheet below, mediterranean-modern sized for the Hlaalu house kit (was vendored-data mu-patch 01)"
+
+[population]
+value = 12000
+unit = "inhabitants"
+source = "Owner 2026-11-24: Balmora 2.0 is a big wealthy merchant hub, denser than a small medina; arm hm (reports/density-arms-2026-11-24) approved. Radius mode: Magna Urbis sizes the radius from it (789 m). Was: Same as arm A (recipes/balmora-vanilla.toml, where 3000 gave about 10x the kept built area), so the two arms compare at one size"
+
+[seed]
+value = "settle-example-1"
+unit = "seed string"
+source = "Guess"
+
+[crop_radius_m]
+value = 1400.0
+unit = "m (half side of the square crop, centred on centre_m)"
+source = "Guess: the ST-2 site keeps ~1 km of ground around a town of 10x vanilla Balmora's built area (~1.1 x 0.6 km); the site crop is 1500 m"
+
+[raster_spacing_m]
+value = 5.0
+unit = "m per planning cell"
+source = "Guess: a 30 m river spans 6 cells; Magna Urbis routes water on this grid (surface.rs:91)"
+
+[site_radius_m]
+value = 0.0
+unit = "m (0 = Magna Urbis settlements::extent_radius(population))"
+source = "Magna Urbis settlements/mod.rs:655"
+
+[water_class]
+value = "river"
+unit = "Magna Urbis water class (sea | lake | river)"
+source = "Guess: inland site; codes from Magna Urbis settlements/placement.rs:1120-1124"
+
+[relief_scale]
+value = 1.0
+unit = "ratio (planned height above the water level / site height above it)"
+source = "Owner 2026-11-24: reshape the valley before planning, then plan on true heights (site-prep.md); the site comes from the terraced derived guide"
+
+[min_water_area_m2]
+value = 2500.0
+unit = "m2 (4-connected water body on the site raster)"
+source = "Guess: one 50 m cell, the region cell of Magna Urbis's placement tests (settlements/placement.rs:1146), so no body below its region resolution reaches the town stage; drops puddle-sized swamp pools"
+
+[sheet_m_per_px]
+value = 2.0
+unit = "m per pixel"
+source = "Guess: a 2 km crop is a 1000 px sheet, lots of 10 m wide stay readable"
+
+# The founding crossing (crates/settle/src/crossing.rs): the regional road Magna Urbis's region stage would give a
+# river town, which its town stage spans the river through (urban/footprint/growth.rs:219). Arm B has no claim, so no
+# road: a cliff-banked river kept the town on one bank (ST-3e, tests/gorge_river.rs).
+[crossing.search_m]
+value = 300.0
+unit = "m (nearest water the crossing starts from, from the centre)"
+source = "Guess: about Magna Urbis's extent radius for 3000 people (settlements/mod.rs:655, 271 m); a town farther from water is not a river town"
+
+[crossing.max_span_m]
+value = 400.0
+unit = "m of water along the crossing line"
+source = "Magna Urbis's longest urban crossing span (urban/footprint/crossings.rs:133, clamp 400 m); wider water is a lake or sea, not bridged"
+
+[crossing.angle_step_deg]
+value = 5.0
+unit = "degrees between the crossing lines tried"
+source = "Guess: at 5 degrees a 200 m span is within 0.1 % of its perpendicular width"
+
+[crossing.reach_m]
+value = 1000.0
+unit = "m of road each way from the crossing's middle (clipped to the crop)"
+source = "Magna Urbis's own river-town tests feed a straight regional road of 1-2 km (urban/kinds_camp_mapping_tests.rs:12, urban/footprint/crossings.rs:1002)"
+
+[crossing.width_m]
+value = 6.0
+unit = "m (carriageway)"
+source = "Magna Urbis's regional road width in its town tests (urban/kinds_camp_mapping_tests.rs:12, urban/composition_faubourgs_tests.rs:7)"
+
+[crossing.rank]
+value = 1
+unit = "Magna Urbis street rank (0 highway, 1 main, 2 local)"
+source = "A main road between towns: rank 1 for the 'main' class in Magna Urbis's regional streets (rust/bridge/urbanRoads.ts:11)"
+
+# The kept town (site.json `claim`, arm A) as Magna Urbis's Claim (crates/settle/src/claim.rs). Ignored by sites
+# without a claim.
+[claim.cell_m]
+value = 1.0
+unit = "m per raster cell"
+source = "Guess: a third of Magna Urbis's own claim cell (urban/neighbours.rs:57, 3 m), so 3-5 m alleys between kept buildings resolve"
+
+[claim.margin_m]
+value = 4.0
+unit = "m (footprints grown by it before closing)"
+source = "Guess: the yard, eaves and doorstep a kept building holds; Magna Urbis adds its own 8 m clear band beyond the land (urban/neighbours.rs:53)"
+
+[claim.close_m]
+value = 12.0
+unit = "m (closing radius)"
+source = "Magna Urbis's claim closing (urban/neighbours.rs:59): blocks across a street merge into one outline"
+
+[claim.simplify_m]
+value = 2.0
+unit = "m (Douglas-Peucker tolerance of outlines and exits)"
+source = "Magna Urbis's claim simplification (urban/neighbours.rs:61)"
+
+[claim.min_hole_m2]
+value = 2500.0
+unit = "m2"
+source = "Magna Urbis's claim hole fill (urban/neighbours.rs:63)"
+
+[claim.min_land_m2]
+value = 200.0
+unit = "m2"
+source = "Guess: Magna Urbis drops claim pieces under 100 m2 (urban/neighbours.rs:64); a lone prop grown by the margin is 50-80 m2, a lone hut about 250 m2"
+
+[claim.exit_in_m]
+value = 60.0
+unit = "m (exit length inside the kept land)"
+source = "Magna Urbis's claim street stub (urban/neighbours.rs:67)"
+
+[claim.exit_out_m]
+value = 60.0
+unit = "m (exit traced outward along road texels)"
+source = "Magna Urbis's claim street stub (urban/neighbours.rs:67); its join reaches 40 m beyond (:71)"
+
+[claim.exit_min_m]
+value = 20.0
+unit = "m (shortest outward run of an exit)"
+source = "Guess: Magna Urbis's edge distance for a dead end pointing out (urban/neighbours.rs:68); shorter runs are roads along the edge"
+
+[claim.exit_merge_m]
+value = 20.0
+unit = "m (outer ends closer than this are one exit)"
+source = "Guess: about two road widths, so a road leaving through two gaps is one exit"
+
+[claim.exit_width_m]
+value = 5.0
+unit = "m (exit street width)"
+source = "Guess: Magna Urbis's street width for a routed access street (urban/footprint/generate.rs:102)"
+
+[claim.join_tolerance_m]
+value = 1.0
+unit = "m (a new street ending this close to an exit joins it; stats only)"
+source = "Guess: Magna Urbis's connectors end exactly on the claim street (urban/neighbours.rs:513, :536); 1 m leaves float room"
+
+# Fitting kit buildings into Magna Urbis's building footprints (crates/settle/src/fit.rs, slice PL-2). The kit path
+# is machine-specific: pass `settle --kit <kit.json>` (or set `kit = "..."` here, relative to this file).
+[fit.slide_step_m]
+value = 1.0
+unit = "m between frontage positions"
+source = "Guess: a tenth of a 10 m house front; finer steps only move a fitted hull, the covered share is per model"
+
+[fit.slide_max]
+value = 9
+unit = "positions per model and turn (centre, then outward both ways)"
+source = "Guess: with 1 m steps, up to 4 m either side of the centre"
+
+[fit.setback_m]
+value = 0.0
+unit = "m (door side behind the footprint's front edge)"
+source = "Magna Urbis draws its footprints on the building line of the lot (urban/building_sites.rs:1371); 0 keeps the door side on it"
+
+[fit.inside_tolerance_m]
+value = 0.05
+unit = "m (a hull may stand this far outside its footprint)"
+source = "Measured 2026-11-24 (PL-0): Magna Urbis's parts stand up to 3 cm outside their lot (tests/common INSIDE_TOLERANCE_M = 0.05)"
+
+[fit.overlap_tolerance_m]
+value = 0.05
+unit = "m (interpenetration still counted as touching)"
+source = "Guess: the same slop as the inside test, so two hulls on a shared footprint edge touch"
+
+[fit.door_probe_m]
+value = 1.0
+unit = "m outside the street door"
+source = "Guess: a doorstep; the pad is the street ground in front of the door"
+
+[fit.ground_sample_m]
+value = 1.0
+unit = "m between ground samples under a hull"
+source = "Guess: about half the site raster cell (1.83 m on balmora-x10s, site.json cell_m), so every cell under a hull is read"
+
+[fit.pad_rise_max_m]
+value = 1.0
+unit = "m (ground above the pad under the hull)"
+source = "Guess: a plinth course; more buries the walls (grading, PL-4, will cut the pad instead)"
+
+[fit.score_margin]
+value = 0.1
+unit = "score (0..1): covered share of the footprint (match domain: intersection-over-union with it)"
+source = "Guess: models within 10 points of the best fit are drawn by kit weight, so a row is not one model"
+
+[fit.back_door_tolerance_deg]
+value = 45.0
+unit = "degrees from the first door's opposite"
+source = "Guess: a door nearer the back than a side counts as a back door"
+
+[fit.domain]
+value = "match"
+unit = "fit domain (footprint = inside Magna Urbis's preview footprints, lot = the whole lot minus lot_setback_m, match = one kit model per Magna Urbis building footprint, inside its lot, best IoU)"
+source = "Owner 2026-11-24: Magna Urbis decides where buildings are, we only map each one to a kit model; measured 2026-11-24 (hc-c1-hlaalu): strict containment fills 480 of 978 lots (454 `inside`), 61 % of the footprints' boxes hold the smallest kit house"
+
+[fit.lot_setback_m]
+value = 0.5
+unit = "m (hull to every lot edge but the street side)"
+source = "Guess: a drip gap between neighbouring houses; the street side keeps the door side on the frontage line"
+
+[fit.back_slide_max_m]
+value = 6.0
+unit = "m (match fallback: hull set back along the street normal, in slide_step_m steps)"
+source = "Measured 2026-11-24 (docs/research/fit-match-diagnosis-2026-11-24.md, change A): an oblique street edge or a concave lot corner blocks the hull at the footprint's front; back-slide to 6 m as a fallback fills +84 parts / +70 lots, moved back p50 1 m, p90 4 m"
+
+[fit.part_frame_max_deg]
+value = 15.0
+unit = "degrees (match fallback: footprint box axis to the street normal)"
+source = "Measured 2026-11-24 (docs/research/fit-match-diagnosis-2026-11-24.md, change B): the footprint's own box frame within 15 degrees, after the back-slide, fills +107 parts / +93 lots with it (turned p50 9 degrees); as the main rule it loses 213 parts"
+
+[fit.sink_back_max_m]
+value = 2.0
+unit = "m (match last stage: ground above the pad under the hull, in place of pad_rise_max_m)"
+source = "Owner 2026-11-24: sink the back (door at street level, ground covers up to ~2 m of the back wall)"
+
+[fit.small_kinds]
+value = ["tower"]
+unit = "kit kinds (match final stage: candidates for footprints no building fits)"
+source = "owner 2026-11-24: towers where no house fits"
+
+# Joining narrow empty lots along their street until a kit building fits (crates/settle/src/merge.rs, slice PL-3a):
+# the medina's continuous street wall (owner 2026-11-24).
+[merge.max_lots]
+value = 3
+unit = "lots joined under one building"
+source = "Guess: medina parts are ~9 m wide and Hlaalu fronts 6-24 m (kit.json), so three plots cover the widest house"
+
+[merge.max_front_m]
+value = 24.0
+unit = "m of frontage (members' access segments summed)"
+source = "Guess: the widest Hlaalu house front, 23.7 m (ex_hlaalu_b_24 in the balmora kit); a wider group fits nothing more"
+
+[merge.min_shared_m]
+value = 2.0
+unit = "m of shared lot boundary"
+source = "Guess: a party wall, not a corner touch; Magna Urbis's plots share whole side edges"
+
+[merge.shared_tolerance_m]
+value = 0.1
+unit = "m (two lot edges this close are one boundary)"
+source = "Guess: Magna Urbis's partition shares exact edges; 0.1 m leaves float room and is far below any lot width"
+
+[merge.max_angle_deg]
+value = 20.0
+unit = "degrees between two neighbours' street normals"
+source = "Guess: a winding medina lane turns a few degrees per plot; a street corner turns 60-90"
+
+[merge.max_offset_m]
+value = 1.5
+unit = "m (the nearer end of a neighbour's frontage off the other's frontage line; also the street-face reach)"
+source = "Guess: building lines on one lane wander by less than a metre; a lot behind or across a lane is a lot depth away"
+
+[merge.max_gap_m]
+value = 1.0
+unit = "m along the street between two neighbours' street faces"
+source = "Guess: adjacent plots' street faces end on their shared corner (gap 0); 1 m leaves float room"
+
+# Closing the street wall (crates/settle/src/filler.rs, slice PL-3b): kit walls along the lot faces no building
+# covers, arches across lane mouths (owner 2026-11-24: houses, Hlaalu walls between them, and arches).
+[filler.walls]
+value = ["meshes/x/ex_hlaalu_wall_01.nif", "meshes/x/ex_hlaalu_wall_up_01.nif", "meshes/x/ex_hlaalu_wall_up_02.nif"]
+unit = "kit model ids, in order of preference"
+source = "balmora kit.json: the Hlaalu wall pieces (3.66 m long, h 7.5; up_01 3.66 m, h 9.3; up_02 11 m, h 12.9)"
+
+[filler.arches]
+value = ["meshes/x/ex_hlaalu_wall_gate_01.nif", "meshes/x/ex_hlaalu_wall_gate_02.nif", "meshes/x/ex_hlaalu_wall_gate_03.nif"]
+unit = "kit model ids"
+source = "balmora kit.json: the Hlaalu gates (3.66, 5.49 and 7.32 m wide)"
+
+[filler.cover_depth_m]
+value = 6.0
+unit = "m behind the face line"
+source = "Guess: a house stands back from its lot face by the fit's setback plus Magna Urbis's front yard (a few m); a wall must never run in front of it"
+
+[filler.min_gap_m]
+value = 0.5
+unit = "m of uncovered face"
+source = "Guess: below half a metre a gap is float noise or an eave's shadow, not an opening"
+
+[filler.overlap_max_m]
+value = 0.5
+unit = "m (wall run past a building end, pieces over each other, piece into a hull)"
+source = "Guess: about a quarter of the Hlaalu wall's 2.3 m depth; hides inside the end post and the house's wall"
+
+[filler.length_tie_m]
+value = 0.05
+unit = "m between two combinations' summed lengths"
+source = "Guess: 5 cm, below what shows; three 3.66 m pieces and one 11 m piece tie, so the plain wall wins"
+
+[filler.arch_slack_m]
+value = 0.5
+unit = "m each way around the arches' widths"
+source = "Guess: the gate pieces' end posts take half a metre of misfit either way"
+
+[filler.towers]
+value = ["meshes/x/ex_hlaalu_bal_01.nif", "meshes/x/ex_hlaalu_bal_02.nif"]
+unit = "kit model ids, in order of preference"
+source = "balmora kit.json: Balmora's own Hlaalu wall towers (kind tower, 5.9 m along the wall, 9.4 m deep, h 7.5), mirror pair: each end takes the one whose body leans out past it (owner 2026-11-24: Hlaalu assets only)"
+
+[filler.tower_turn_deg]
+value = 15.0
+unit = "degrees of turn between two members' street faces"
+source = "Guess: under merge.max_angle_deg (20, the most a run turns per plot); a 15 degree kink reads as a corner, a lane's few-degree wander does not (MU urban/types.rs Enclosure.towers: corners after gates)"
+
+[filler.tower_min_spacing_m]
+value = 80.0
+unit = "m between two towers' corner points"
+source = "Measured 2026-11-24 (world10x) on balmora-x10s-b2w medina: 8 m gave 267 towers, 40 m 83, 80 m 34; vanilla Balmora has 12 bal_01/02 references; Balmora 2.0 is ~10x its built area, towers are landmarks at corners, not a fence"
+
+# The town's streets as a road network v1 file for the game's ribbons (crates/settle/src/streets.rs, slice S1a):
+# streets.json next to placements.json, guide frame.
+[streets.by_rank]
+value = [
+  { class = "main", surface = "flagstone" },
+  { class = "main", surface = "flagstone" },
+  { class = "local", surface = "cobble" },
+  { class = "trail", surface = "dirt" },
+  { class = "trail", surface = "dirt" },
+]
+unit = "road network v1 class + surface per Magna Urbis street rank (index = rank 0..4; past the end = last)"
+source = "Brief S1a 2026-11-24: main/arterial streets main + flagstone, ordinary streets local + cobble, lanes and closes trail + dirt; Magna Urbis ranks on balmora-x10s-b2w medina: 1 gate-street/street/market, 2 street/wall-lane, 3 lane/path, 4 close/track/stairs/path"
+
+[streets.by_role]
+unit = "road network v1 class + surface per Magna Urbis street role (overrides by_rank)"
+source = "Brief S1a 2026-11-24: lanes, alleys and dead ends trail + dirt; Guess: wall-lane is a lane along the wall, track a farm track, stairs stone steps"
+[streets.by_role.value]
+lane = { class = "trail", surface = "dirt" }
+"wall-lane" = { class = "trail", surface = "dirt" }
+close = { class = "trail", surface = "dirt" }
+path = { class = "trail", surface = "dirt" }
+track = { class = "track", surface = "dirt" }
+stairs = { class = "trail", surface = "flagstone" }
+
+[streets.junction_merge_m]
+value = 0.5
+unit = "m between street ends that are one junction"
+source = "Guess: Magna Urbis joins streets on shared vertices (exact up to float); 0.5 m is far below any street width"
+
+[streets.water_sample_m]
+value = 0.5
+unit = "m between water samples along a street"
+source = "Guess: under half the site raster cell (1.83 m, balmora-x10hs-b2w-c1 site.json cell_m), so a one-cell channel is never stepped over"
+
+[streets.bridge_pad_m]
+value = 2.0
+unit = "m a water bridge reaches past its last wet sample, each side"
+source = "Guess: the bank drops into the river bed within about one site cell; the deck lands on dry ground"
+
+[streets.grade_run_m]
+value = 5.0
+unit = "m of run per grade sample"
+source = "Guess: about three site cells (1.83 m), so the bilinear heights' cell-edge kinks do not read as steps; about a house front"
+
+[streets.regional_match_m]
+value = 3.0
+unit = "m from a regional road's centreline"
+source = "Guess: half the regional road width (~6 m, worldgen-roads main); Magna Urbis keeps regional streets on their line"
+
+# Garden features in placements.json (crates/settle/src/gardens.rs, slice G1a): TEMPORARY SCAFFOLD (owner 2026-11-24),
+# trees where no house could go and on Magna Urbis's garden lots, until Magna Urbis land-use planting, flora garden
+# zones and kit structures on slivers replace it.
+[gardens.enabled]
+value = true
+unit = "bool"
+source = "Owner 2026-11-24: temporary scaffold, plant trees in the lots no house went on and in Magna Urbis's garden lots"
+
+[gardens.sliver_width_m]
+value = 5.0
+unit = "m, short side of the lot's minimum-area box"
+source = "measured 2026-11-24: empty plot lots' short side p10 3.7 m, smallest kit house 7.8 m"
+
+# Magna Urbis's own options (camelCase, as its LayoutConfig / ParcelConfig name them); empty = its defaults.
+[magna_urbis.layout]
+tissue = "terraces"
+maxStairGrade = 1.0
+maxLaneGrade = 0.4
+# Owner 2026-11-24, arm hm: denser tissue (MU caps density at 2, urban/morph.rs:137), every town lot builds behind its house,
+# block houses and plots from the `hlaalu` culture (mediterranean-modern sized for the Hlaalu kit, culture pack
+# cultures/hlaalu.toml) on medina streets.
+density = 2.0
+backBuildings = 1.0
+[magna_urbis.layout.footprint]
+# Owner 2026-11-24, arm c1 "perfect": land from the population at 200 people/ha (the only MU mode with districts and
+# harbour planning; MU grows the town over the reachable flats). c1 also moved the site centre 200 m west, 380 m south
+# onto the plains (scratchpad site copy): the real site export must carry that centre (next slice).
+budget = "population"
+grossDensity = 200.0
+[magna_urbis.layout.styleSheet.houses.city]
+styles = [{ culture = "hlaalu", weight = 1.0 }]
+[magna_urbis.layout.styleSheet.plots.city]
+styles = [{ culture = "hlaalu", weight = 1.0 }]
+[magna_urbis.parcels]
+density = 2.0

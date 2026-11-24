@@ -1,0 +1,3 @@
+# Keep upstream bytes exactly (this repo has core.autocrlf=true on Windows): no eol conversion, so
+# include_str!/include_bytes! data and fixtures stay identical to Magna Urbis and upstream diffs apply cleanly.
+* -text

@@ -1,0 +1,717 @@
+//! Landmark preview massing keyed by the programme role: a parish church is a
+//! nave, a choir with its apse and a west tower; a mosque a court with arcades,
+//! a prayer hall and a minaret; a castle a keep inside a towered bailey. These
+//! are city-side previews labelled by part, never disguised houses; the houses
+//! engine has no landmark recipe yet (review issue 6).
+//!
+//! Pure geometry in the frame of the lot's main frontage (`s` along the street,
+//! `t` inwards, the street at `t = ta`): every part is the buildable lot clipped
+//! by a convex window, so it always lies inside the parcel, and parts are laid
+//! side by side (no overlaps). Deterministic from the parcel seed.
+use super::occupation::{Frame, Occupancy, circle, clip_parts};
+use super::cut_geometry::{Plane, clip, ring_area, add, dot, length, scale, sub};
+use crate::rng::Rng;
+use crate::urban::{Point, Shape};
+
+pub(super) type Part = (Vec<Point>, Option<Vec<Point>>, &'static str);
+
+/// The building site of a monument or a utility building, in the frame of its
+/// main frontage: `s` along the street from `s0` to `s1`, `t` into the lot
+/// from the street line `ta` to the back `t1`. Every part is the lot clipped
+/// by a convex window, so it always lies inside the parcel. Parts must not
+/// overlap one another (they may touch): lay them side by side.
+pub(super) struct Site<'a> {
+    pub(super) b: &'a [Point],
+    pub(super) f: Frame,
+    pub(super) s0: f64,
+    pub(super) s1: f64,
+    pub(super) ta: f64,
+    pub(super) t1: f64,
+    pub(super) out: Vec<Part>,
+}
+impl Site<'_> {
+    pub(super) fn at(&self, s: f64, t: f64) -> Point {
+        add(scale(self.f.u, s), scale(self.f.n, t))
+    }
+    pub(super) fn mid(&self) -> f64 {
+        (self.s0 + self.s1) * 0.5
+    }
+    pub(super) fn width(&self) -> f64 {
+        self.s1 - self.s0
+    }
+    pub(super) fn depth(&self) -> f64 {
+        self.t1 - self.ta
+    }
+    /// Every valid component of the lot inside the window (a concave lot may
+    /// leave several), never one ring bridged by zero-width edges.
+    pub(super) fn clip(&mut self, planes: &[Plane], label: &'static str) -> bool {
+        let mut ok = false;
+        for r in clip_parts(self.b, planes) {
+            if r.len() >= 3 && ring_area(&r).abs() >= 4.0 {
+                self.out.push((r, None, label));
+                ok = true;
+            }
+        }
+        ok
+    }
+    pub(super) fn rect(&mut self, s0: f64, s1: f64, t0: f64, t1: f64, label: &'static str) -> bool {
+        s1 - s0 > 1.0 && t1 - t0 > 1.0 && self.clip(&self.f.rect(s0, s1, t0, t1), label)
+    }
+    /// Rectangle centred on `s`.
+    pub(super) fn bar(&mut self, s: f64, w: f64, t0: f64, t1: f64, label: &'static str) -> bool {
+        self.rect(s - w * 0.5, s + w * 0.5, t0, t1, label)
+    }
+    pub(super) fn disk(&mut self, s: f64, t: f64, r: f64, label: &'static str) -> bool {
+        r > 1.0 && self.clip(&circle(self.at(s, t), r), label)
+    }
+    /// Half disk beyond `t` (an apse), centred on `s`.
+    pub(super) fn apse(&mut self, s: f64, t: f64, r: f64, label: &'static str) -> bool {
+        let mut planes = circle(self.at(s, t), r);
+        planes.push(self.f.above(t));
+        r > 1.0 && self.clip(&planes, label)
+    }
+    /// A small part (porch, chimney base, obelisk, statue plinth): like `rect`
+    /// but kept from 1 m² (the other windows drop anything under 4 m²).
+    pub(super) fn small(&mut self, s0: f64, s1: f64, t0: f64, t1: f64, label: &'static str) -> bool {
+        let r = clip(self.b, &self.f.rect(s0, s1, t0, t1));
+        let ok = r.len() >= 3 && ring_area(&r).abs() >= 1.0;
+        if ok {
+            self.out.push((r, None, label));
+        }
+        ok
+    }
+    /// A convex polygon given by its frame points `(s, t)` in order (either winding).
+    pub(super) fn poly(&mut self, points: &[(f64, f64)], label: &'static str) -> bool {
+        if points.len() < 3 {
+            return false;
+        }
+        let ring: Vec<Point> = points.iter().map(|&(s, t)| self.at(s, t)).collect();
+        let sign = if ring_area(&ring) >= 0.0 { 1.0 } else { -1.0 };
+        let planes: Vec<Plane> = (0..ring.len())
+            .filter_map(|i| {
+                let (p, q) = (ring[i], ring[(i + 1) % ring.len()]);
+                let e = sub(q, p);
+                let l = length(e);
+                // Outward normal of the edge: the window keeps dot(n, x) <= dot(n, p).
+                (l > 1e-6).then(|| { let n = Point { x: sign * e.y / l, y: -sign * e.x / l }; (n, dot(n, p)) })
+            })
+            .collect();
+        planes.len() >= 3 && self.clip(&planes, label)
+    }
+    /// An ellipse (semi-axes `rs` along the street, `rt` into the lot) as a 16-gon.
+    pub(super) fn ellipse(&mut self, s: f64, t: f64, rs: f64, rt: f64, label: &'static str) -> bool {
+        let pts: Vec<(f64, f64)> = (0..16).map(|k| { let a = k as f64 * std::f64::consts::TAU / 16.0; (s + rs * a.cos(), t + rt * a.sin()) }).collect();
+        rs > 1.0 && rt > 1.0 && self.poly(&pts, label)
+    }
+    /// A ring of `n` convex wedges between the ellipses of semi-axes
+    /// (`rs`, `rt`) and (`rs - thick`, `rt - thick`), from angle `a0` to `a1`
+    /// (radians, 0 along the street, π/2 into the lot): an arena's seating
+    /// (0..2π), a theatre's half ring (0..π opens to the street). Each wedge is
+    /// one part, so the ring keeps its open middle.
+    pub(super) fn wedges(&mut self, (s, t): (f64, f64), (rs, rt): (f64, f64), thick: f64, (a0, a1): (f64, f64), n: usize, label: &'static str) -> bool {
+        if n == 0 || thick <= 0.5 || rs - thick < 0.5 || rt - thick < 0.5 {
+            return false;
+        }
+        let mut ok = false;
+        for k in 0..n {
+            let (b0, b1) = (a0 + (a1 - a0) * k as f64 / n as f64, a0 + (a1 - a0) * (k + 1) as f64 / n as f64);
+            let p = |r: (f64, f64), a: f64| (s + r.0 * a.cos(), t + r.1 * a.sin());
+            let inner = (rs - thick, rt - thick);
+            ok |= self.poly(&[p((rs, rt), b0), p((rs, rt), b1), p(inner, b1), p(inner, b0)], label);
+        }
+        ok
+    }
+    /// A rectangle with a rectangular hole (a terrace around its hall).
+    pub(super) fn ring(&mut self, outer: [f64; 4], inner: [f64; 4], label: &'static str) -> bool {
+        let [a, b, c, d] = outer;
+        let [e, g, h, k] = inner;
+        let r = clip(self.b, &self.f.rect(a, b, c, d));
+        if r.len() < 3 || ring_area(&r).abs() < 4.0 {
+            return false;
+        }
+        let shape = Shape {
+            outer: r.clone(),
+            holes: vec![],
+        };
+        let hole = (g - e > 1.0
+            && k - h > 1.0
+            && super::lot_envelopes::rect_within(
+                &shape,
+                self.at(e, h),
+                self.f.u,
+                self.f.n,
+                g - e,
+                k - h,
+            ))
+        .then(|| vec![self.at(e, h), self.at(g, h), self.at(g, k), self.at(e, k)]);
+        self.out.push((r, hole, label));
+        true
+    }
+    /// Ranges around an open court (cloister, caravanserai, madrasa), with a
+    /// gate gap in the front range; the court itself stays unbuilt.
+    pub(super) fn court(&mut self, [a, b, c, d]: [f64; 4], range: f64, gate: f64, label: &'static str) {
+        let r = range.min((b - a) * 0.3).min((d - c) * 0.3);
+        let m = (a + b) * 0.5;
+        if gate > 0.0 {
+            self.rect(a, m - gate * 0.5, c, c + r, label);
+            self.rect(m + gate * 0.5, b, c, c + r, label);
+        } else {
+            self.rect(a, b, c, c + r, label);
+        }
+        self.rect(a, a + r, c + r, d - r, label);
+        self.rect(b - r, b, c + r, d - r, label);
+        self.rect(a, b, d - r, d, label);
+    }
+}
+
+/// Monument family of an architecture pack: `orthodox`, `maghreb`, `persian`,
+/// `chinese`, `japanese`, `indic`, `antique`, `american`, `african`, `western`.
+pub(super) fn family(pack: &str) -> &'static str {
+    match pack.split('-').next().unwrap_or("") {
+        _ if pack.starts_with("EUR-EAST") => "orthodox",
+        _ if pack.starts_with("AF-MAG") || pack.starts_with("AF-NILE") => "maghreb",
+        _ if pack.starts_with("AS-MIDE") => "persian",
+        _ if pack.starts_with("AS-CHI") || pack.starts_with("AS-KOR") => "chinese",
+        _ if pack.starts_with("AS-JAP") => "japanese",
+        _ if pack.starts_with("AS-IND") || pack.starts_with("AS-SEA") => "indic",
+        _ if pack.starts_with("MED-ANT") => "antique",
+        _ if pack.starts_with("AM-MESO") || pack.starts_with("AM-AND") => "american",
+        "AF" => "african",
+        _ => "western",
+    }
+}
+
+/// Landmark parts, or None when the role is not a landmark programme (or the
+/// lot is too small for it, in which case the ordinary occupation applies).
+pub(super) fn massing(
+    o: &Occupancy,
+    b: &[Point],
+    f: Frame,
+    (s0, s1, ta, t1): (f64, f64, f64, f64),
+    rng: &mut Rng,
+) -> Option<Vec<Part>> {
+    let role = o.role;
+    let style = family(o.pack);
+    let mut x = Site {
+        b,
+        f,
+        s0,
+        s1,
+        ta,
+        t1,
+        out: vec![],
+    };
+    let (w, d, m) = (x.width(), x.depth(), x.mid());
+    if w < 8.0 || d < 8.0 {
+        return None;
+    }
+    if o.morph.value["_innerWalls"].as_bool().unwrap_or(false) {
+        if role == "defence.kasbah" && w.min(d) >= 30.0 {
+            kasbah(&mut x)?;
+            return Some(x.out);
+        }
+        if role == "worship.cathedral" && w.min(d) >= 28.0 {
+            x.s0+=4.0;x.s1-=4.0;x.ta+=5.0;x.t1-=4.0;
+        }
+    }
+    // The forms of `monuments` come first: a role one of its families builds
+    // never reaches the older forms below.
+    if super::monuments::build(&mut x, o, style, rng) {
+        return (!x.out.is_empty()).then_some(x.out);
+    }
+    let short = w.min(d);
+    let is = |p: &str| role == p || role.starts_with(&format!("{p}."));
+    if is("worship.parish") || is("worship.cathedral") || is("worship.church") {
+        church(&mut x, is("worship.cathedral"), style, rng)?;
+    } else if is("worship.mosque") || is("worship.masjid") {
+        mosque(
+            &mut x,
+            role == "worship.mosque.friday",
+            is("worship.masjid"),
+            style,
+        )?;
+    } else if is("worship.monastery") {
+        // Church along one side, cloister ranges beside it.
+        let cw = (0.3 * w).clamp(7.0, 14.0);
+        let left = rng.chance(0.5);
+        let (a, b2) = if left { (s0, s0 + cw) } else { (s1 - cw, s1) };
+        let len = (0.85 * d).min(60.0);
+        let t = ta + 1.0;
+        x.rect(a, b2, t, t + cw * 0.9, "tower");
+        x.rect(a, b2, t + cw * 0.9, t + len - cw * 0.5, "nave");
+        x.apse((a + b2) * 0.5, t + len - cw * 0.5, cw * 0.4, "apse");
+        let (c0, c1) = if left { (b2 + 1.0, s1) } else { (s0, a - 1.0) };
+        let side = (c1 - c0).min(len);
+        if side > 12.0 {
+            let (c0, c1) = if left {
+                (c0, c0 + side)
+            } else {
+                (c1 - side, c1)
+            };
+            x.court(
+                [c0, c1, t, t + side],
+                (side * 0.22).clamp(4.0, 8.0),
+                0.0,
+                "cloister",
+            );
+        }
+    } else if is("worship.pyramid-precinct")
+        || (style == "american" && role.starts_with("worship.temple"))
+    {
+        // Stepped pyramid: concentric terraces and the shrine on top.
+        let side = (0.7 * short).clamp(12.0, 60.0);
+        let (c, t) = (m, ta + d * 0.55);
+        let steps = 3;
+        for k in 0..steps {
+            let o2 = side * 0.5 * (1.0 - k as f64 / (steps as f64 + 1.0));
+            let i2 = side * 0.5 * (1.0 - (k + 1) as f64 / (steps as f64 + 1.0));
+            x.ring(
+                [c - o2, c + o2, t - o2, t + o2],
+                [c - i2, c + i2, t - i2, t + i2],
+                "terrace",
+            );
+        }
+        let top = side * 0.5 / (steps as f64 + 1.0);
+        x.rect(c - top, c + top, t - top, t + top, "shrine");
+    } else if role.starts_with("worship.") && !matches!(role, "worship.wayside")
+        || is("civic.drum-tower")
+    {
+        if is("civic.drum-tower") {
+            let s = (0.5 * short).clamp(8.0, 18.0);
+            x.bar(m, s, ta + (d - s) * 0.5, ta + (d + s) * 0.5, "tower");
+        } else {
+            temple(&mut x, role, style, rng)?;
+        }
+    } else if is("defence.keep")
+        || is("defence.castle")
+        || is("defence.fortress")
+        || is("defence.fort")
+        || is("defence.kasbah")
+    {
+        castle(&mut x, role, style)?;
+    } else if is("defence.tower") || is("worship.wayside") {
+        let s = (0.45 * short).clamp(4.0, 12.0);
+        x.bar(m, s, ta + (d - s) * 0.5, ta + (d + s) * 0.5, "tower");
+    } else if is("civic.townhall") || is("civic.council-house") || is("civic.guildhall") {
+        // Hall on the street; a town hall raises a belfry in its middle.
+        let depth = (0.45 * d).clamp(9.0, 18.0);
+        let bell = (0.2 * w).clamp(5.0, 8.0);
+        if is("civic.guildhall") || w < bell + 10.0 {
+            x.rect(s0, s1, ta, ta + depth, "hall");
+        } else {
+            x.rect(s0, m - bell * 0.5, ta, ta + depth, "hall");
+            x.bar(m, bell, ta, ta + bell, "belfry");
+            x.rect(
+                m - bell * 0.5,
+                m + bell * 0.5,
+                ta + bell,
+                ta + depth,
+                "hall",
+            );
+            x.rect(m + bell * 0.5, s1, ta, ta + depth, "hall");
+        }
+        if d - depth > 14.0 {
+            x.rect(
+                s0,
+                s0 + (0.35 * w).max(5.0),
+                ta + depth,
+                ta + depth + (0.4 * d).min(20.0),
+                "wing",
+            );
+        }
+    } else if is("civic.bathhouse") || is("civic.hammam") || is("civic.thermae") {
+        // Cold, warm and hot rooms in a row, the furnace behind.
+        let bw = (0.6 * w).clamp(8.0, if is("civic.thermae") { 50.0 } else { 18.0 });
+        let room = ((d - 6.0) / 3.5).clamp(4.0, if is("civic.thermae") { 20.0 } else { 9.0 });
+        let t = ta + 1.0;
+        x.bar(m, bw, t, t + room * 1.2, "cold-room");
+        x.bar(m, bw * 0.85, t + room * 1.2, t + room * 2.2, "warm-room");
+        x.bar(m, bw * 0.85, t + room * 2.2, t + room * 3.2, "hot-room");
+        x.bar(
+            m,
+            (bw * 0.3).max(3.0),
+            t + room * 3.2,
+            t + room * 3.2 + 3.0,
+            "furnace",
+        );
+    } else if is("commerce.caravanserai")
+        || is("commerce.funduq")
+        || is("commerce.inn")
+        || is("commerce.dharamshala")
+        || is("civic.madrasa")
+        || is("civic.maristan")
+        || is("civic.hospital")
+        || is("defence.barracks")
+        || is("civic.yamen")
+        || is("elite.palace")
+        || is("civic.palace")
+        || is("civic.academy")
+        || is("civic.university")
+    {
+        let side = (0.92 * w).min(0.92 * d);
+        if side < 16.0 {
+            return None;
+        }
+        let (a, c) = (m - side * 0.5, ta + 0.5);
+        let range = if is("commerce.inn") {
+            5.5
+        } else {
+            (0.16 * side).clamp(5.0, 10.0)
+        };
+        x.court([a, a + side, c, c + side.min(d - 1.0)], range, 3.5, "range");
+    } else if is("commerce.market.hall")
+        || is("commerce.macellum")
+        || is("commerce.fishmarket")
+        || (is("commerce.market") && !matches!(o.function, "market" | "common" | "open_space"))
+    {
+        let hw = (0.8 * w).min(30.0);
+        x.bar(
+            m,
+            hw,
+            ta + 2.0,
+            ta + 2.0 + (0.7 * d).min(45.0),
+            "market-hall",
+        );
+    } else if is("commerce.souk") || is("commerce.bazaar") || is("commerce.emporium") {
+        // Two rows of booths along a covered lane.
+        let lane = 3.5;
+        let len = (0.9 * d).min(80.0);
+        let row = ((w - lane) * 0.5).clamp(3.0, 7.0);
+        x.rect(m - lane * 0.5 - row, m - lane * 0.5, ta, ta + len, "shops");
+        x.rect(m + lane * 0.5, m + lane * 0.5 + row, ta, ta + len, "shops");
+    } else if is("storage.granary") || is("storage.horreum") || is("storage.barn") {
+        let gw = (0.4 * w).clamp(7.0, 14.0);
+        x.bar(
+            m,
+            gw,
+            ta + 2.0,
+            ta + 2.0 + (0.75 * d).clamp(12.0, 50.0),
+            "granary",
+        );
+    } else if is("storage.qollqa") {
+        let r = 2.6;
+        let mut t = ta + r + 1.0;
+        while t + r < t1 {
+            x.disk(m - 3.5, t, r, "store");
+            x.disk(m + 3.5, t, r, "store");
+            t += 2.0 * r + 1.5;
+        }
+    } else if is("craft.mill") {
+        // The mill stands at the back of its lot, on the race (an isolated
+        // mill's plot backs onto the water, kinds.rs `bank`), its yard on the
+        // street; the wheel turns against its rear wall, its plane along the
+        // race (2 m wide: a 1.5 m strip fell under the structural minimum of
+        // `finish` and the wheel never showed).
+        let mw = (0.5 * w).clamp(7.0, 12.0);
+        let md = (0.5 * d).clamp(7.0, 12.0).min(d - 3.5);
+        let back = x.t1 - 0.3;
+        x.bar(m, mw, back - 2.0 - md, back - 2.0, "mill-house");
+        x.bar(m, (0.6 * mw).min(5.0), back - 2.0, back, "wheel");
+    } else {
+        return None;
+    }
+    (!x.out.is_empty()).then_some(x.out)
+}
+
+fn church(x: &mut Site, cathedral: bool, style: &str, rng: &mut Rng) -> Option<()> {
+    let (w, d, m) = (x.width(), x.depth(), x.mid());
+    let parvis = (0.1 * d).clamp(1.5, 10.0);
+    let t = x.ta + parvis;
+    let room = x.t1 - t - 1.0;
+    if style == "orthodox" {
+        // Cross-in-square: narthex, domed naos, apse, detached bell tower.
+        let q = (0.6 * w)
+            .min(0.55 * room)
+            .clamp(8.0, if cathedral { 32.0 } else { 18.0 });
+        x.bar(m, q, t, t + 0.3 * q, "narthex");
+        x.bar(m, q, t + 0.3 * q, t + 1.3 * q, "naos");
+        x.apse(m, t + 1.3 * q, 0.22 * q, "apse");
+        let bell = (0.28 * q).max(4.0);
+        let side = if rng.chance(0.5) {
+            m - q * 0.5 - bell - 2.0
+        } else {
+            m + q * 0.5 + 2.0
+        };
+        if side > x.s0 && side + bell < x.s1 {
+            x.rect(side, side + bell, t, t + bell, "tower");
+        }
+        return Some(());
+    }
+    let nw = if cathedral {
+        (0.3 * w).clamp(10.0, 20.0)
+    } else {
+        (0.32 * w).clamp(6.5, 12.0)
+    };
+    let tower = if cathedral { nw * 0.5 } else { nw * 0.9 };
+    let choir = nw * 0.9;
+    let r = 0.375 * nw;
+    let nave = (room - tower - choir - r).min(if cathedral { 80.0 } else { 34.0 });
+    if nave < nw || w < nw + 2.0 {
+        return None;
+    }
+    if cathedral {
+        // Twin west towers framing the portal.
+        x.rect(
+            m - nw * 0.5 - tower * 0.5,
+            m - nw * 0.5 + tower * 0.5,
+            t,
+            t + tower,
+            "tower",
+        );
+        x.rect(
+            m - nw * 0.5 + tower * 0.5,
+            m + nw * 0.5 - tower * 0.5,
+            t,
+            t + tower,
+            "portal",
+        );
+        x.rect(
+            m + nw * 0.5 - tower * 0.5,
+            m + nw * 0.5 + tower * 0.5,
+            t,
+            t + tower,
+            "tower",
+        );
+    } else {
+        x.bar(m, tower, t, t + tower, "tower");
+    }
+    let t = t + tower;
+    if cathedral && nave > 3.0 * nw {
+        // Transept at two thirds of the nave.
+        let a = t + nave * 0.66;
+        x.bar(m, nw, t, a, "nave");
+        x.bar(m, (2.2 * nw).min(w - 1.0), a, a + nw * 0.8, "transept");
+        x.bar(m, nw, a + nw * 0.8, t + nave, "nave");
+    } else {
+        x.bar(m, nw, t, t + nave, "nave");
+    }
+    x.bar(m, nw * 0.75, t + nave, t + nave + choir, "choir");
+    x.apse(m, t + nave + choir, r, "apse");
+    Some(())
+}
+
+fn mosque(x: &mut Site, friday: bool, masjid: bool, style: &str) -> Option<()> {
+    let (w, d, m) = (x.width(), x.depth(), x.mid());
+    let (a, b) = (x.s0 + 0.5, x.s1 - 0.5);
+    let (c, e) = (x.ta + 0.5, x.t1 - 0.5);
+    let square = !matches!(style, "persian" | "indic");
+    let tall = (0.12 * w.min(d)).clamp(4.0, if friday { 9.0 } else { 6.0 });
+    if masjid || d < 24.0 || w < 16.0 {
+        // Neighbourhood masjid: prayer hall and a small minaret at the street.
+        let hall = (0.7 * d).clamp(8.0, 22.0);
+        x.rect(a, b - tall - 0.5, e - hall, e, "prayer-hall");
+        if square {
+            x.rect(b - tall, b, c, c + tall, "minaret");
+        } else {
+            x.disk(b - tall * 0.5, c + tall * 0.5, tall * 0.4, "minaret");
+        }
+        return Some(());
+    }
+    // Prayer hall at the back (qibla), arcades around the sahn in front.
+    let hall = (if friday { 0.5 } else { 0.42 } * (e - c)).clamp(10.0, 70.0);
+    let h = e - hall;
+    x.rect(a, b, h, e, "prayer-hall");
+    let arc = (0.1 * w).clamp(3.0, 6.0);
+    x.rect(
+        a + tall,
+        b - if friday { tall } else { 0.0 },
+        c,
+        c + arc,
+        "arcade",
+    );
+    x.rect(a, a + arc, c + tall.max(arc), h, "arcade");
+    x.rect(
+        b - arc,
+        b,
+        c + if friday { tall.max(arc) } else { arc },
+        h,
+        "arcade",
+    );
+    let corners: &[f64] = if friday { &[0.0, 1.0] } else { &[0.0] };
+    for &k in corners {
+        let s = if k == 0.0 { a } else { b - tall };
+        if square {
+            x.rect(s, s + tall, c, c + tall, "minaret");
+        } else {
+            x.disk(s + tall * 0.5, c + tall * 0.5, tall * 0.4, "minaret");
+        }
+    }
+    if friday && w > 30.0 {
+        // Ablution fountain in the court.
+        x.disk(m, (c + arc + h) * 0.5, 2.0, "fountain");
+    }
+    Some(())
+}
+
+fn temple(x: &mut Site, role: &str, style: &str, rng: &mut Rng) -> Option<()> {
+    let (w, d, m) = (x.width(), x.depth(), x.mid());
+    let t = x.ta + 1.0;
+    let major = role.contains("major") || role.contains("city-god") || role.contains("confucian");
+    match style {
+        "chinese" | "japanese" => {
+            // Axial gate hall, court, main hall on its terrace, rear hall.
+            let hw = (0.7 * w).clamp(8.0, 36.0);
+            x.bar(m, hw * 0.6, t, t + 5.0, "gate-hall");
+            let pt = t + 5.0 + (0.18 * d).clamp(4.0, 20.0);
+            let pd = (0.35 * d).clamp(8.0, 30.0);
+            x.ring(
+                [m - hw * 0.5, m + hw * 0.5, pt, pt + pd],
+                [m - hw * 0.4, m + hw * 0.4, pt + 1.5, pt + pd - 1.5],
+                "platform",
+            );
+            x.bar(m, hw * 0.8, pt + 1.5, pt + pd - 1.5, "hall");
+            if major && x.t1 - (pt + pd) > 10.0 {
+                x.bar(
+                    m,
+                    hw * 0.7,
+                    pt + pd + 3.0,
+                    (pt + pd + 3.0 + pd * 0.6).min(x.t1 - 1.0),
+                    "hall",
+                );
+            }
+            if major && w > hw + 10.0 {
+                // Pagoda beside the axis.
+                let p = (0.2 * w).clamp(6.0, 10.0);
+                let s = if rng.chance(0.5) {
+                    x.s0 + 1.0
+                } else {
+                    x.s1 - 1.0 - p
+                };
+                x.rect(s, s + p, t + 6.0, t + 6.0 + p, "pagoda");
+            }
+        }
+        "indic" => {
+            // Gopuram at the gate, mandapa, then the vimana tower.
+            let hw = (0.4 * w).clamp(6.0, 24.0);
+            x.bar(m, hw * 0.8, t, t + 5.0, "gopuram");
+            let a = t + 5.0 + (0.15 * d).clamp(3.0, 15.0);
+            let md = (0.3 * d).clamp(6.0, 25.0);
+            x.bar(m, hw, a, a + md, "mandapa");
+            x.bar(m, hw * 0.9, a + md, a + md + hw * 0.9, "vimana");
+        }
+        "antique" => {
+            // Podium temple: pronaos steps and cella.
+            let hw = (0.4 * w).clamp(8.0, 30.0);
+            let len = (0.6 * d).clamp(12.0, 60.0);
+            let start = t + (0.12 * d).clamp(2.0, 12.0);
+            x.bar(m, hw, start, start + len * 0.35, "portico");
+            x.bar(m, hw, start + len * 0.35, start + len, "cella");
+        }
+        _ => {
+            // Platform and hall (shrine, hof, kiva and other temples).
+            let hw = (0.5 * w).clamp(6.0, 28.0);
+            let len = (0.6 * d).clamp(6.0, 50.0);
+            let start = t + (0.15 * d).clamp(1.0, 12.0);
+            x.ring(
+                [
+                    m - hw * 0.5 - 1.5,
+                    m + hw * 0.5 + 1.5,
+                    start - 1.5,
+                    start + len + 1.5,
+                ],
+                [m - hw * 0.5, m + hw * 0.5, start, start + len],
+                "platform",
+            );
+            x.bar(m, hw, start, start + len, "hall");
+        }
+    }
+    (!x.out.is_empty()).then_some(())
+}
+
+/// A kasbah is an inhabited compound: bent entry, ranges and several courts.
+/// The city's retained first circuit encloses the larger elite neighbourhood.
+fn kasbah(x:&mut Site)->Option<()> {
+    let (a,b,c,d)=(x.s0+0.5,x.s1-0.5,x.ta+0.5,x.t1-0.5);
+    let (w,h)=(b-a,d-c);
+    let range=(w.min(h)*0.13).clamp(4.0,8.0);
+    x.court([a,b,c,d],1.5,4.0,"wall");
+    x.rect(a+2.0,a+2.0+range,c+6.0,d-range-3.0,"barracks");
+    x.rect(b-range-2.0,b-2.0,c+6.0,d-range-3.0,"residence");
+    x.rect(a+range+3.0,b-range-3.0,d-range-2.0,d-2.0,"palace");
+    let middle=c+h*0.52;
+    x.rect(a+range+2.0,x.mid()-2.0,middle,middle+range,"arcade");
+    x.rect(x.mid()+2.0,b-range-2.0,middle,middle+range,"arcade");
+    x.rect(x.mid()+2.0,x.mid()+2.0+range,c+2.0,c+7.0,"gatehouse");
+    Some(())
+}
+
+#[cfg(test)]
+mod wall_options_tests {
+    use crate::urban::Morph;
+    use super::*;
+    #[test]
+    fn kasbah_option_is_an_inhabited_multi_court_compound() {
+        let b=vec![Point{x:0.0,y:0.0},Point{x:60.0,y:0.0},Point{x:60.0,y:80.0},Point{x:0.0,y:80.0}];
+        let f=Frame {u:Point{x:1.0,y:0.0},n:Point{x:0.0,y:1.0},t0:0.0};
+        let mut morph=super::super::super::resolve("medina","culture","auto","core",1.0,&serde_json::json!({}),"parcels").unwrap();
+        let preview=|morph:&Morph| {
+            let o=Occupancy {morph,zone:"core",function:"collective",role:"defence.kasbah",landmark:true,
+                party_walls:false,wealth:0.9,seed:"kasbah",pack:"AF-MAG",court_lot:false,court_kept:None};
+            massing(&o,&b,f,(0.0,60.0,0.0,80.0),&mut Rng::new("kasbah")).unwrap()
+        };
+        let before=preview(&morph);
+        assert!(before.iter().any(|p|p.2=="keep"));
+        morph.value["_innerWalls"]=serde_json::json!(true);
+        let after=preview(&morph);
+        for label in ["wall","palace","residence","barracks","arcade","gatehouse"] {
+            assert!(after.iter().any(|p|p.2==label),"{label}");
+        }
+        assert!(!after.iter().any(|p|p.2=="keep"));
+        for (i,(a,_,_)) in after.iter().enumerate() {
+            let sa=Shape {outer:a.clone(),holes:vec![]};assert!(super::super::super::geometry::simple(&sa));
+            for (b,_,_) in &after[i+1..] {
+                let overlap:f64=super::super::super::geometry::intersection(&sa,&Shape {outer:b.clone(),holes:vec![]})
+                    .iter().map(super::super::super::geometry::area).sum();assert!(overlap<0.01,"overlapping kasbah ranges");
+            }
+        }
+    }
+}
+
+fn castle(x: &mut Site, role: &str, style: &str) -> Option<()> {
+    let (w, d, m) = (x.width(), x.depth(), x.mid());
+    let (a, b, c, e) = (x.s0 + 0.5, x.s1 - 0.5, x.ta + 0.5, x.t1 - 0.5);
+    let short = w.min(d);
+    let keep = (0.35 * short).clamp(7.0, if role.contains("keep") { 18.0 } else { 24.0 });
+    if short < 20.0 || role == "defence.keep" && short < 30.0 {
+        // A lone keep (donjon, tower house) in its yard.
+        x.bar(
+            m,
+            keep.min(w - 2.0),
+            c + (d - keep) * 0.5,
+            c + (d + keep) * 0.5,
+            "keep",
+        );
+        return Some(());
+    }
+    let tw = (0.1 * short).clamp(4.0, 9.0);
+    let wall = (0.35 * tw).clamp(1.5, 3.0);
+    let round = matches!(style, "western" | "orthodox");
+    for (s, t) in [(a, c), (b - tw, c), (a, e - tw), (b - tw, e - tw)] {
+        if round {
+            x.disk(s + tw * 0.5, t + tw * 0.5, tw * 0.5, "tower");
+        } else {
+            x.rect(s, s + tw, t, t + tw, "tower");
+        }
+    }
+    // Curtain walls between the towers, a gate in the front wall.
+    let gate = 4.0;
+    let inset = (tw - wall) * 0.5;
+    x.rect(a + tw, m - gate * 0.5, c + inset, c + inset + wall, "wall");
+    x.rect(m + gate * 0.5, b - tw, c + inset, c + inset + wall, "wall");
+    x.rect(a + tw, b - tw, e - inset - wall, e - inset, "wall");
+    x.rect(a + inset, a + inset + wall, c + tw, e - tw, "wall");
+    x.rect(b - inset - wall, b - inset, c + tw, e - tw, "wall");
+    // Keep towards the back, a hall (palas) along one side.
+    let kt = e - tw - 2.0 - keep;
+    x.bar(m, keep, kt, kt + keep, "keep");
+    if role != "defence.kasbah" && kt - (c + tw + 4.0) > 8.0 {
+        x.rect(
+            a + tw,
+            a + tw + (0.2 * w).clamp(5.0, 10.0),
+            c + tw + 4.0,
+            kt - 2.0,
+            "hall",
+        );
+    }
+    Some(())
+}

@@ -1,0 +1,174 @@
+# Water recipe for `worldgen-water` on the 10x Vvardenfell guide (x10s-b2: 3329 x 3073 samples at 18.288 m, 60.9 km
+# square once padded). Every value carries its unit and its source; `Guess` is allowed and counted, as in Scrib's
+# superfargoth/docs/specs/tunables.md. Magna Urbis paths are relative to its rust/crates/terrain/src at rev 21e2217.
+
+[seed]
+value = "vvardenfell-x10-water-1"
+unit = "seed string"
+source = "Guess"
+
+[downsample]
+value = 1
+unit = "guide samples per Magna Urbis cell (integer)"
+source = "Measured 2026-11-24 on x10s-b2: /1 (3329², 18.3 m) runs in 4.2 s and cuts less (29 k samples > 50 m vs 66 k at /3, which also leaves coarse-grid trenches); MU V2 runs at 1024 (web/src/v2/terrainSettings.ts:93)"
+
+[pad_depth_m]
+value = 50.0
+unit = "m below sea of the cells padding the guide to a square"
+source = "Guess: open sea, deeper than any river mouth cut (valley_depth caps at 40 m, vector_water/incision.rs:39)"
+
+[lake_simplify_m]
+value = 2.0
+unit = "m (Douglas-Peucker tolerance of lake outlines)"
+source = "Guess: a ninth of the 18.3 m guide sample; the kept vertices stay on the shoreline iso-contour and a chord cuts at most 2 m, well inside lake_overlap_m (the 25 m mask outline cut corners into the air: 41 % of its vertices over ground below the level, measured 2026-11-24 on x10s-b2w)"
+
+[lake_overlap_m]
+value = 6.0
+unit = "m (lake outline pushed out past the shoreline, under the bank)"
+source = "Guess: a third of a guide sample. Industry: UE5's Water plugin draws a lake body past its shoreline and lets the landscape hide the edge"
+
+[river_fill]
+value = 0.6
+unit = "share of the bed depth filled with water (surface = carved centre ground + share x bed_depth(width))"
+source = "Magna Urbis FILL (vector_water/incision.rs:27), applied by us on the final carved heights (MU sets each level against the relief before later courses cut it)"
+
+[max_basin_lake_km2]
+value = 5.0
+unit = "km2 (largest dry closed basin a course crossing it at its spill level fills as a lake)"
+source = "Guess: a large mountain lake for a 61 km island; beyond it the course ends at the basin's rim (a terminal sink) rather than flooding a plain"
+
+[climate.temperature]
+value = 11.0
+unit = "degC at sea level"
+source = "Guess: Magna Urbis's own test climate (vector_water/tests.rs:9); temperate maritime island"
+
+[climate.precipitation]
+value = 800.0
+unit = "mm per year"
+source = "Guess: Magna Urbis's own test climate (vector_water/tests.rs:9)"
+
+# Magna Urbis `Settings` (vector_water/mod.rs:71-109), camelCase keys. Values are Magna Urbis's V2 defaults
+# (vector_water/planform_tests.rs:7-27, "V2 default settings", and web/src/v2/terrainSettings.ts:84-100).
+
+[settings.riverArea]
+value = 11.1
+unit = "km2 (catchment where a river starts)"
+source = "Magna Urbis V2 default formula max(0.003 * width_km^2, 0.02) (planform_tests.rs:9) for the 60.9 km square"
+
+[settings.headwaters]
+value = 1.0
+unit = "0..1 (rivers continue up their valleys down to a tenth of riverArea)"
+source = "Magna Urbis V2 default (planform_tests.rs:23; web headwaters true)"
+
+[settings.minRiverLength]
+value = 400.0
+unit = "m (shortest drawn course)"
+source = "Magna Urbis V2 default (planform_tests.rs:24, terrainSettings.ts:84)"
+
+[settings.density]
+value = 0.0
+unit = "share of rivers kept, smallest catchments dropped first (0 = all)"
+source = "Magna Urbis V2 default (planform_tests.rs:25)"
+
+[settings.lakeDepth]
+value = 1.0
+unit = "m (least depth of a water-budget lake)"
+source = "Magna Urbis V2 default (planform_tests.rs:10, terrainSettings.ts:86)"
+
+[settings.lakeArea]
+value = 10.0
+unit = "ha (least area of a water-budget lake)"
+source = "Magna Urbis V2 default (planform_tests.rs:11, terrainSettings.ts:87)"
+
+[settings.riverMode]
+value = "vector"
+unit = "Magna Urbis mode id"
+source = "Magna Urbis V2 default (planform_tests.rs:12)"
+
+[settings.flatSlope]
+value = 1.0
+unit = "Magna Urbis flat-routing slope setting"
+source = "Magna Urbis V2 default (planform_tests.rs:13)"
+
+[settings.sinuosity]
+value = 1.8
+unit = "target channel length / valley length"
+source = "Magna Urbis V2 default (planform_tests.rs:14)"
+
+[settings.widthScale]
+value = 1.0
+unit = "factor on width = 3 (A / 1 km2)^0.45 m (vector_water/rivers.rs:93)"
+source = "Hydraulic geometry: the unscaled formula gives 9-17 m for 10-100 km2 catchments, the width of small island rivers (Leopold & Maddock 1953 w ~ Q^0.5; MU's own exponent 0.45). MU's V2 3.0 (planform_tests.rs:15; web vectorWidth 3) is a display scale: 28-52 m rivers on x10s-b2w, measured 2026-11-24"
+
+[settings.balance]
+value = true
+unit = "bool (water-budget lakes, Turc-Pike)"
+source = "Magna Urbis V2 default (planform_tests.rs:16)"
+
+[settings.braiding]
+value = 1.0
+unit = "Magna Urbis braiding strength"
+source = "Magna Urbis V2 default (planform_tests.rs:17)"
+
+[settings.anabranching]
+value = true
+unit = "bool"
+source = "Magna Urbis V2 default (planform_tests.rs:18)"
+
+[settings.terrainInfluence]
+value = true
+unit = "bool (meander migration slowed by bank height)"
+source = "Magna Urbis V2 default (planform_tests.rs:19)"
+
+[settings.avulsions]
+value = true
+unit = "bool"
+source = "Magna Urbis V2 default (planform_tests.rs:20)"
+
+[settings.confluence]
+value = "climate"
+unit = "Magna Urbis confluence-angle mode id"
+source = "Magna Urbis V2 default (planform_tests.rs:21)"
+
+[settings.deltas]
+value = true
+unit = "bool"
+source = "Magna Urbis V2 default (planform_tests.rs:22)"
+
+[settings.oxbows]
+value = 0.0
+unit = "share of meander cut-offs kept as oxbow lakes (not written to water.json)"
+source = "Magna Urbis V2 default (planform_tests.rs:26)"
+
+# Magna Urbis `Conditioning` (vector_water/conditioning.rs:5-40), camelCase keys; V2 defaults
+# (planform_tests.rs:4-6, web terrainSettings.ts:79-83).
+
+[conditioning.mode]
+value = "none"
+unit = "Magna Urbis mode id (erosion, breach, both, none)"
+source = "Measured 2026-11-24 on x10s-b2: both (MU V2 default) re-erodes the whole relief (3.2 M of 3.3 M land samples lowered, crater silted +515 m); breach silts closed basins (103 k samples raised > 5 m); none keeps 97 % of land bit-exact and only carves the courses (our sf_worldgen stage 2 already eroded the relief)"
+
+[conditioning.strength]
+value = 2.0
+unit = "Magna Urbis erosion strength, 0..3 (12 steps per unit, conditioning.rs:752)"
+source = "Magna Urbis V2 default (terrainSettings.ts:80)"
+
+[conditioning.maxDepth]
+value = 8.0
+unit = "m (deepest breach)"
+source = "Magna Urbis V2 default (terrainSettings.ts:81)"
+
+[conditioning.maxLength]
+value = 3000.0
+unit = "m (longest breach)"
+source = "Magna Urbis V2 default (terrainSettings.ts:82)"
+
+[conditioning.banks]
+value = "valley"
+unit = "Magna Urbis breach bank profile id (valley, step)"
+source = "Magna Urbis V2 default (terrainSettings.ts:83)"
+
+[conditioning.lakes]
+value = 0.5
+unit = "share of closed depressions kept as lakes, 0..2 (2..4 digs bowls)"
+source = "Guess: web V2 lakeAbundance 0.5 (terrainSettings.ts:68); Magna Urbis's own tests keep none (0)"

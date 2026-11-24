@@ -1,0 +1,1007 @@
+{
+  "version": 2,
+  "_docCultureServices": "A culture's own buildings, added to its family's list; an entry naming a role of the family replaces that family entry for this culture only.",
+  "_docTownPop": "townPop (optional): below minPop, an entry still gives a few landmark buildings from this population on: one at townPop, one more each time the population triples, at most three (roles::services_scaled). It is the culture's verticality: a cyberpunk town keeps a tower or two. Housing towers and slabs below city size hold together only roles::tower_home_share of the households.",
+  "cultureServices": {
+    "industrial-victorian": [
+      { "role": "craft.factory", "function": "workshop", "per": 1500, "minPop": 800, "max": 60, "site": "downstream", "area": [1500, 8000], "district": "craft" },
+      { "role": "commerce.exchange", "function": "collective", "per": 0, "minPop": 4000, "max": 1, "site": "nucleus", "area": [400, 2000], "landmark": true, "district": "market" }
+    ],
+    "haussmannian": [
+      { "role": "civic.theatre", "function": "collective", "per": 15000, "minPop": 5000, "max": 6, "site": "nucleus", "area": [1200, 4000], "landmark": true, "district": "civic" },
+      { "role": "commerce.department-store", "function": "collective", "per": 15000, "minPop": 5000, "max": 6, "site": "nucleus", "area": [1500, 5000], "district": "market" }
+    ],
+    "belle-epoque": [
+      { "role": "civic.theatre", "function": "collective", "per": 15000, "minPop": 5000, "max": 6, "site": "nucleus", "area": [1200, 4000], "landmark": true, "district": "civic" },
+      { "role": "civic.library", "function": "collective", "per": 0, "minPop": 4000, "max": 1, "site": "nucleus", "area": [800, 3000], "landmark": true, "district": "civic" }
+    ],
+    "latin-american-grid": [
+      { "role": "worship.cathedral", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "nucleus", "area": [1500, 5000], "landmark": true, "district": "religious" }
+    ],
+    "garden-city": [
+      { "role": "commerce.skyscraper", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "storage.elevator", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 }
+    ],
+    "art-deco-metropolis": [
+      { "role": "commerce.skyscraper", "function": "collective", "per": 8000, "minPop": 50000, "townPop": 10000, "max": 16, "site": "nucleus", "area": [900, 3000], "landmark": true, "district": "market" }
+    ],
+    "dieselpunk": [
+      { "role": "commerce.skyscraper", "function": "collective", "per": 10000, "minPop": 50000, "townPop": 10000, "max": 10, "site": "nucleus", "area": [900, 3000], "landmark": true, "district": "market" },
+      { "role": "civic.power-plant", "function": "workshop", "per": 30000, "minPop": 8000, "max": 3, "site": "edge", "area": [15000, 40000], "district": "craft" },
+      { "role": "civic.tv-tower", "function": "collective", "per": 0, "minPop": 100000, "max": 1, "site": "hill", "area": [400, 1500], "landmark": true }
+    ],
+    "soviet-socialist": [
+      { "role": "commerce.skyscraper", "function": "collective", "per": 0, "minPop": 50000, "max": 1, "site": "nucleus", "area": [1500, 4000], "landmark": true, "district": "civic" },
+      { "role": "civic.tv-tower", "function": "collective", "per": 0, "minPop": 100000, "max": 1, "site": "hill", "area": [400, 1500], "landmark": true }
+    ],
+    "post-socialist-european": [
+      { "role": "commerce.mall", "function": "collective", "per": 40000, "minPop": 10000, "max": 3, "site": "gate", "area": [8000, 30000], "district": "market" },
+      { "role": "commerce.skyscraper", "function": "collective", "per": 30000, "minPop": 50000, "max": 4, "site": "nucleus", "area": [1200, 4000], "landmark": true, "district": "market" },
+      { "role": "worship.parish", "function": "collective", "per": 3000, "minPop": 150, "max": 40, "site": "spread", "area": [300, 1200] }
+    ],
+    "dystopian-brutalism": [
+      { "role": "civic.megastructure", "function": "collective", "per": 30000, "minPop": 100000, "max": 4, "site": "spread", "area": [6000, 20000], "landmark": true },
+      { "role": "housing.slab", "function": "collective", "per": 800, "minPop": 30000, "townPop": 3000, "max": 120, "site": "spread", "area": [1500, 4000] }
+    ],
+    "american-suburbia": [
+      { "role": "commerce.mall", "function": "collective", "per": 20000, "minPop": 4000, "max": 6, "site": "gate", "area": [8000, 30000], "district": "market" },
+      { "role": "worship.parish", "function": "collective", "per": 3000, "minPop": 150, "max": 40, "site": "spread", "area": [300, 1200] },
+      { "role": "housing.tower", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "commerce.skyscraper", "function": "collective", "per": 0, "minPop": 50000, "max": 1, "site": "nucleus", "area": [1200, 4000], "landmark": true, "district": "market" }
+    ],
+    "australian-suburban": [
+      { "role": "commerce.mall", "function": "collective", "per": 20000, "minPop": 4000, "max": 6, "site": "gate", "area": [8000, 30000], "district": "market" },
+      { "role": "worship.parish", "function": "collective", "per": 3000, "minPop": 150, "max": 40, "site": "spread", "area": [300, 1200] },
+      { "role": "housing.tower", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "commerce.skyscraper", "function": "collective", "per": 0, "minPop": 50000, "max": 1, "site": "nucleus", "area": [1200, 4000], "landmark": true, "district": "market" }
+    ],
+    "european-contemporary": [
+      { "role": "worship.parish", "function": "collective", "per": 5000, "minPop": 300, "max": 20, "site": "spread", "area": [300, 1200] },
+      { "role": "housing.tower", "function": "collective", "per": 10000, "minPop": 50000, "townPop": 15000, "max": 6, "site": "spread", "area": [800, 2400] }
+    ],
+    "eco-city": [
+      { "role": "civic.vertical-farm", "function": "collective", "per": 10000, "minPop": 2000, "max": 6, "site": "spread", "area": [1500, 4000] },
+      { "role": "housing.tower", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "commerce.skyscraper", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "civic.power-plant", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "worship.parish", "function": "collective", "per": 6000, "minPop": 300, "max": 12, "site": "spread", "area": [300, 1200] }
+    ],
+    "global-high-rise": [
+      { "role": "housing.tower", "function": "collective", "per": 800, "minPop": 50000, "townPop": 3000, "max": 200, "site": "spread", "area": [800, 2400] },
+      { "role": "worship.temple", "function": "collective", "per": 20000, "minPop": 3000, "max": 8, "site": "spread", "area": [300, 1500] }
+    ],
+    "gulf-contemporary": [
+      { "role": "worship.mosque.friday", "function": "collective", "per": 40000, "minPop": 1500, "max": 6, "site": "nucleus", "area": [1500, 10000], "landmark": true, "district": "religious" },
+      { "role": "worship.masjid", "function": "collective", "per": 3000, "minPop": 500, "max": 40, "site": "spread", "area": [200, 900] },
+      { "role": "commerce.mall", "function": "collective", "per": 25000, "minPop": 4000, "max": 6, "site": "gate", "area": [8000, 30000], "district": "market" },
+      { "role": "commerce.skyscraper", "function": "collective", "per": 8000, "minPop": 50000, "townPop": 8000, "max": 20, "site": "nucleus", "area": [1200, 4000], "landmark": true, "district": "market" }
+    ],
+    "japanese-contemporary": [
+      { "role": "worship.temple", "function": "collective", "per": 6000, "minPop": 600, "max": 20, "site": "spread", "area": [300, 1500] },
+      { "role": "worship.shrine", "function": "collective", "per": 3000, "minPop": 300, "max": 30, "site": "spread", "area": [100, 600] },
+      { "role": "housing.tower", "function": "collective", "per": 15000, "minPop": 50000, "townPop": 12000, "max": 10, "site": "spread", "area": [800, 2400] }
+    ],
+    "chinese-megacity": [
+      { "role": "housing.tower", "function": "collective", "per": 600, "minPop": 50000, "townPop": 3000, "max": 300, "site": "spread", "area": [800, 2400] },
+      { "role": "worship.temple", "function": "collective", "per": 50000, "minPop": 10000, "max": 4, "site": "spread", "area": [300, 1500] },
+      { "role": "commerce.mall", "function": "collective", "per": 25000, "minPop": 8000, "max": 6, "site": "gate", "area": [8000, 30000], "district": "market" }
+    ],
+    "korean-high-rise": [
+      { "role": "housing.slab", "function": "collective", "per": 800, "minPop": 30000, "townPop": 3000, "max": 150, "site": "spread", "area": [1500, 4000] },
+      { "role": "housing.tower", "function": "collective", "per": 2500, "minPop": 50000, "townPop": 5000, "max": 80, "site": "spread", "area": [800, 2400] },
+      { "role": "worship.church", "function": "collective", "per": 4000, "minPop": 500, "max": 30, "site": "spread", "area": [300, 1200] },
+      { "role": "worship.temple", "function": "collective", "per": 30000, "minPop": 5000, "max": 4, "site": "spread", "area": [300, 1500] }
+    ],
+    "southeast-asian-tropical": [
+      { "role": "worship.temple", "function": "collective", "per": 5000, "minPop": 300, "max": 30, "site": "spread", "area": [300, 1500] },
+      { "role": "commerce.market.ward", "function": "market", "per": 5000, "minPop": 1500, "max": 20, "site": "spread", "area": [300, 2000] }
+    ],
+    "south-asian-metropolis": [
+      { "role": "worship.temple", "function": "collective", "per": 4000, "minPop": 300, "max": 40, "site": "spread", "area": [300, 1500] },
+      { "role": "worship.masjid", "function": "collective", "per": 8000, "minPop": 1000, "max": 20, "site": "spread", "area": [200, 900] }
+    ],
+    "north-african-contemporary": [
+      { "role": "worship.mosque.friday", "function": "collective", "per": 40000, "minPop": 1500, "max": 6, "site": "nucleus", "area": [1500, 10000], "landmark": true, "district": "religious" },
+      { "role": "worship.masjid", "function": "collective", "per": 2500, "minPop": 300, "max": 40, "site": "spread", "area": [200, 900] }
+    ],
+    "middle-eastern-contemporary": [
+      { "role": "worship.mosque.friday", "function": "collective", "per": 40000, "minPop": 1500, "max": 6, "site": "nucleus", "area": [1500, 10000], "landmark": true, "district": "religious" },
+      { "role": "worship.masjid", "function": "collective", "per": 3000, "minPop": 300, "max": 40, "site": "spread", "area": [200, 900] },
+      { "role": "worship.parish", "function": "collective", "per": 8000, "minPop": 1000, "max": 10, "site": "spread", "area": [300, 1200] }
+    ],
+    "sub-saharan-african-metropolis": [
+      { "role": "worship.mosque.friday", "function": "collective", "per": 40000, "minPop": 2000, "max": 6, "site": "nucleus", "area": [1500, 10000], "landmark": true, "district": "religious" },
+      { "role": "worship.parish", "function": "collective", "per": 4000, "minPop": 300, "max": 30, "site": "spread", "area": [300, 1200] },
+      { "role": "commerce.office-block", "function": "collective", "per": 5000, "minPop": 30000, "max": 20, "site": "nucleus", "area": [600, 2400], "district": "market" }
+    ],
+    "informal-urban-expansion": [
+      { "role": "worship.parish", "function": "collective", "per": 3000, "minPop": 150, "max": 40, "site": "spread", "area": [300, 1200] },
+      { "role": "worship.masjid", "function": "collective", "per": 5000, "minPop": 500, "max": 20, "site": "spread", "area": [200, 900] }
+    ],
+    "latin-american-hillside": [
+      { "role": "worship.chapel", "function": "collective", "per": 3000, "minPop": 200, "max": 30, "site": "spread", "area": [150, 600] }
+    ],
+    "post-apocalyptic-ruins": [
+      { "role": "defence.tower", "function": "collective", "per": 2000, "minPop": 200, "max": 12, "site": "hill", "area": [60, 200] }
+    ],
+    "cyberpunk": [
+      { "role": "civic.megastructure", "function": "collective", "per": 30000, "minPop": 100000, "max": 4, "site": "spread", "area": [6000, 20000], "landmark": true },
+      { "role": "civic.arcology", "function": "collective", "per": 0, "minPop": 200000, "max": 1, "site": "nucleus", "area": [10000, 40000], "landmark": true, "district": "civic" },
+      { "role": "housing.tower", "function": "collective", "per": 1500, "minPop": 50000, "townPop": 2000, "max": 200, "site": "spread", "area": [800, 2400] },
+      { "role": "civic.tv-tower", "function": "collective", "per": 0, "minPop": 100000, "max": 1, "site": "hill", "area": [400, 1500], "landmark": true }
+    ],
+    "solarpunk": [
+      { "role": "civic.vertical-farm", "function": "collective", "per": 4000, "minPop": 800, "max": 20, "site": "spread", "area": [1500, 4000] },
+      { "role": "housing.tower", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "commerce.skyscraper", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "commerce.mall", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "civic.power-plant", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 }
+    ],
+    "atompunk-retrofuturist": [
+      { "role": "civic.habitat-dome", "function": "collective", "per": 15000, "minPop": 2000, "max": 6, "site": "spread", "area": [1500, 8000] },
+      { "role": "civic.tv-tower", "function": "collective", "per": 0, "minPop": 50000, "max": 1, "site": "hill", "area": [400, 1500], "landmark": true },
+      { "role": "civic.power-plant.atomic", "function": "workshop", "per": 0, "minPop": 15000, "max": 1, "site": "edge", "area": [15000, 40000], "district": "craft" },
+      { "role": "civic.power-plant", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "housing.tower", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 }
+    ],
+    "corporate-arcology": [
+      { "role": "civic.arcology", "function": "collective", "per": 0, "minPop": 100000, "max": 1, "site": "nucleus", "area": [10000, 40000], "landmark": true, "district": "civic" },
+      { "role": "civic.megastructure", "function": "collective", "per": 40000, "minPop": 100000, "max": 3, "site": "spread", "area": [6000, 20000], "landmark": true }
+    ],
+    "futuristic-space-colony": [
+      { "role": "civic.habitat-dome", "function": "collective", "per": 0, "minPop": 50, "max": 1, "site": "nucleus", "area": [2000, 12000], "landmark": true, "district": "civic" },
+      { "role": "civic.habitat-dome.ward", "function": "collective", "per": 3000, "minPop": 500, "max": 20, "site": "spread", "area": [800, 4000] },
+      { "role": "civic.vertical-farm", "function": "collective", "per": 5000, "minPop": 800, "max": 12, "site": "spread", "area": [1500, 4000] },
+      { "role": "civic.power-plant.atomic", "function": "workshop", "per": 0, "minPop": 8000, "max": 1, "site": "edge", "area": [15000, 40000], "district": "craft" },
+      { "role": "civic.power-plant", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "housing.tower", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "commerce.skyscraper", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 },
+      { "role": "commerce.mall", "function": "collective", "per": 0, "minPop": 0, "max": 1, "site": "spread", "area": [100, 200], "maxPop": 1 }
+    ],
+    "wizard-city": [
+      { "role": "civic.wizard-tower", "function": "collective", "per": 2000, "minPop": 15, "max": 64, "site": "nucleus", "area": [120, 700], "perCapita": 0.2, "landmark": true, "district": "civic" },
+      { "role": "civic.library", "function": "collective", "per": 0, "minPop": 600, "max": 1, "site": "nucleus", "area": [400, 2000], "landmark": true, "district": "civic" },
+      { "role": "civic.observatory", "function": "collective", "per": 0, "minPop": 400, "max": 1, "site": "hill", "area": [150, 700], "landmark": true },
+      { "role": "craft.alchemist", "function": "workshop", "per": 1200, "minPop": 200, "max": 20, "site": "spread", "area": [80, 300] }
+    ],
+    "dwarven": [
+      { "role": "civic.great-forge", "function": "workshop", "per": 0, "minPop": 100, "max": 1, "site": "nucleus", "area": [400, 2400], "landmark": true, "district": "craft:smiths" },
+      { "role": "civic.vault", "function": "collective", "per": 0, "minPop": 300, "max": 1, "site": "hill", "area": [300, 1400], "landmark": true, "district": "elite" },
+      { "role": "defence.arsenal", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "gate", "area": [600, 2500], "landmark": true, "district": "garrison" },
+      { "role": "craft.smithy", "function": "workshop", "per": 400, "minPop": 50, "max": 40, "site": "spread", "area": [60, 250], "district": "craft:smiths" },
+      { "role": "commerce.tavern", "function": "collective", "per": 400, "minPop": 80, "max": 40, "site": "spread", "area": [80, 300], "district": "market" }
+    ],
+    "duergar-hold": [
+      { "role": "civic.great-forge", "function": "workshop", "per": 0, "minPop": 100, "max": 1, "site": "nucleus", "area": [400, 2400], "landmark": true, "district": "craft:smiths" },
+      { "role": "civic.vault", "function": "collective", "per": 0, "minPop": 400, "max": 1, "site": "hill", "area": [300, 1400], "landmark": true, "district": "garrison" },
+      { "role": "civic.prison", "function": "collective", "per": 0, "minPop": 300, "max": 1, "site": "edge", "area": [300, 1400], "landmark": true },
+      { "role": "defence.arsenal", "function": "collective", "per": 0, "minPop": 800, "max": 1, "site": "gate", "area": [600, 2500], "landmark": true, "district": "garrison" },
+      { "role": "craft.smithy", "function": "workshop", "per": 500, "minPop": 50, "max": 40, "site": "spread", "area": [60, 250], "district": "craft:smiths" }
+    ],
+    "gnomish": [
+      { "role": "civic.clockwork", "function": "workshop", "per": 0, "minPop": 100, "max": 1, "site": "spread", "area": [300, 1600], "landmark": true, "district": "civic" },
+      { "role": "civic.vault", "function": "collective", "per": 0, "minPop": 600, "max": 1, "site": "hill", "area": [200, 900], "landmark": true },
+      { "role": "civic.observatory", "function": "collective", "per": 0, "minPop": 800, "max": 1, "site": "hill", "area": [150, 600], "landmark": true },
+      { "role": "craft.workshop", "function": "workshop", "per": 500, "minPop": 80, "max": 40, "site": "spread", "area": [60, 250] }
+    ],
+    "elven": [
+      { "role": "civic.moot-tree", "function": "collective", "per": 0, "minPop": 50, "max": 1, "site": "nucleus", "area": [300, 2400], "landmark": true, "district": "civic" },
+      { "role": "worship.grove", "function": "collective", "per": 0, "minPop": 100, "max": 1, "site": "edge", "area": [600, 3000], "landmark": true, "district": "religious" },
+      { "role": "civic.library", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "spread", "area": [400, 1800], "landmark": true },
+      { "role": "civic.observatory", "function": "collective", "per": 0, "minPop": 2500, "max": 1, "site": "hill", "area": [150, 600], "landmark": true }
+    ],
+    "goblin-warren": [
+      { "role": "civic.war-pit", "function": "collective", "per": 0, "minPop": 80, "max": 1, "site": "nucleus", "area": [300, 1800], "landmark": true, "district": "garrison" },
+      { "role": "defence.tower", "function": "collective", "per": 600, "minPop": 100, "max": 12, "site": "edge", "area": [30, 90] },
+      { "role": "craft.workshop", "function": "workshop", "per": 400, "minPop": 80, "max": 30, "site": "spread", "area": [40, 200] },
+      { "role": "commerce.tavern", "function": "collective", "per": 500, "minPop": 100, "max": 20, "site": "spread", "area": [60, 200] }
+    ],
+    "orcish": [
+      { "role": "civic.war-pit", "function": "collective", "per": 0, "minPop": 80, "max": 1, "site": "nucleus", "area": [400, 2400], "landmark": true, "district": "garrison" },
+      { "role": "defence.barracks", "function": "collective", "per": 2500, "minPop": 400, "max": 8, "site": "gate", "area": [300, 1200], "district": "garrison" },
+      { "role": "craft.smithy", "function": "workshop", "per": 300, "minPop": 50, "max": 40, "site": "edge", "area": [60, 250], "district": "craft:smiths" }
+    ],
+    "myconid-colony": [
+      { "role": "civic.spore-hall", "function": "collective", "per": 0, "minPop": 40, "max": 1, "site": "nucleus", "area": [300, 2000], "landmark": true, "district": "civic" },
+      { "role": "open.garden", "function": "common", "per": 400, "minPop": 50, "max": 20, "site": "spread", "area": [200, 1200] }
+    ],
+    "drow-enclave": [
+      { "role": "civic.web-spire", "function": "collective", "per": 0, "minPop": 150, "max": 1, "site": "hill", "area": [300, 1800], "landmark": true, "district": "religious" },
+      { "role": "elite.manor", "function": "collective", "per": 1500, "minPop": 500, "max": 12, "site": "hill", "area": [500, 1400], "district": "elite" },
+      { "role": "civic.prison", "function": "collective", "per": 0, "minPop": 400, "max": 1, "site": "edge", "area": [300, 1400] }
+    ],
+    "merfolk-tidal": [
+      { "role": "civic.tide-hall", "function": "collective", "per": 0, "minPop": 60, "max": 1, "site": "waterfront", "area": [300, 2000], "landmark": true, "district": "civic" },
+      { "role": "commerce.fishmarket", "function": "collective", "per": 0, "minPop": 200, "max": 1, "site": "waterfront", "area": [150, 900], "requires": "water", "district": "market" },
+      { "role": "craft.boatshed", "function": "workshop", "per": 500, "minPop": 60, "max": 16, "site": "waterfront", "area": [80, 300], "requires": "water" }
+    ],
+    "giant-hold": [
+      { "role": "civic.giant-hall", "function": "collective", "per": 0, "minPop": 20, "max": 1, "site": "nucleus", "area": [600, 4000], "landmark": true, "district": "elite" },
+      { "role": "defence.tower", "function": "collective", "per": 800, "minPop": 100, "max": 6, "site": "hill", "area": [60, 200] }
+    ],
+    "lizardfolk-swamp": [
+      { "role": "worship.ziggurat", "function": "collective", "per": 0, "minPop": 200, "max": 1, "site": "hill", "area": [800, 6000], "landmark": true, "district": "religious" },
+      { "role": "civic.tank", "function": "common", "per": 0, "minPop": 150, "max": 1, "site": "spread", "area": [400, 3000] }
+    ],
+    "stilt-town": [
+      { "role": "civic.hall", "function": "collective", "per": 0, "minPop": 150, "max": 1, "site": "nucleus", "area": [200, 1000], "landmark": true, "district": "civic" },
+      { "role": "craft.boatshed", "function": "workshop", "per": 400, "minPop": 60, "max": 20, "site": "waterfront", "area": [60, 250], "requires": "water" },
+      { "role": "commerce.fishmarket", "function": "collective", "per": 0, "minPop": 300, "max": 1, "site": "waterfront", "area": [150, 900], "requires": "water", "district": "market" }
+    ],
+    "halfling": [
+      { "role": "commerce.tavern", "function": "collective", "per": 250, "minPop": 40, "max": 40, "site": "spread", "area": [80, 250], "district": "market" },
+      { "role": "commerce.inn", "function": "collective", "per": 500, "minPop": 100, "max": 30, "site": "gate", "area": [150, 500] },
+      { "role": "elite.manor", "function": "collective", "per": 0, "minPop": 100, "max": 1, "site": "hill", "area": [300, 1200], "district": "elite" },
+      { "role": "storage.granary", "function": "warehouse", "per": 1000, "minPop": 100, "max": 20, "site": "spread", "area": [80, 400] }
+    ],
+    "italian-comune": [
+      { "role": "worship.baptistery", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "nucleus", "area": [150, 600], "landmark": true, "district": "religious" },
+      { "role": "civic.clocktower", "function": "collective", "per": 0, "minPop": 1200, "max": 1, "site": "nucleus", "area": [60, 300], "landmark": true, "district": "civic" },
+      { "role": "elite.villa", "function": "collective", "per": 4000, "minPop": 3000, "max": 8, "site": "edge", "area": [600, 1400], "district": "elite" }
+    ],
+    "byzantine-greek": [
+      { "role": "civic.hippodrome", "function": "collective", "per": 0, "minPop": 20000, "max": 1, "site": "edge", "area": [12000, 40000], "landmark": true },
+      { "role": "worship.baptistery", "function": "collective", "per": 0, "minPop": 5000, "max": 1, "site": "nucleus", "area": [150, 600], "district": "religious" },
+      { "role": "civic.bathhouse", "function": "collective", "per": 4000, "minPop": 2000, "max": 10, "site": "spread", "area": [200, 900] }
+    ],
+    "venetian-lagoon": [
+      { "role": "defence.arsenal", "function": "collective", "per": 0, "minPop": 6000, "max": 1, "site": "quay", "area": [3000, 20000], "requires": "water", "landmark": true, "district": "port" },
+      { "role": "commerce.exchange", "function": "collective", "per": 0, "minPop": 4000, "max": 1, "site": "nucleus", "area": [400, 2000], "landmark": true, "district": "market" }
+    ],
+    "hanseatic": [
+      { "role": "commerce.exchange", "function": "collective", "per": 0, "minPop": 4000, "max": 1, "site": "nucleus", "area": [400, 2000], "landmark": true, "district": "market" },
+      { "role": "civic.guildhall", "function": "collective", "per": 6000, "minPop": 2000, "max": 8, "site": "nucleus", "area": [300, 1200], "landmark": true, "district": "market" }
+    ],
+    "flemish-cloth-town": [
+      { "role": "civic.clocktower", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "nucleus", "area": [120, 500], "landmark": true, "district": "civic" },
+      { "role": "civic.guildhall", "function": "collective", "per": 6000, "minPop": 1500, "max": 8, "site": "nucleus", "area": [400, 2000], "landmark": true, "district": "market" }
+    ],
+    "rynek-town": [
+      { "role": "civic.townhall", "function": "collective", "per": 0, "minPop": 800, "max": 1, "site": "nucleus", "area": [300, 2000], "landmark": true, "district": "civic" },
+      { "role": "civic.guildhall", "function": "collective", "per": 0, "minPop": 2000, "max": 1, "site": "nucleus", "area": [600, 2400], "landmark": true, "district": "market" }
+    ],
+    "russian-kremlin": [
+      { "role": "worship.cathedral", "function": "collective", "per": 0, "minPop": 2500, "max": 1, "site": "nucleus", "area": [800, 4000], "landmark": true, "district": "religious" },
+      { "role": "defence.arsenal", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "nucleus", "area": [1500, 6000], "district": "garrison" }
+    ],
+    "caucasian-highland": [
+      { "role": "defence.tower", "function": "collective", "per": 300, "minPop": 80, "max": 30, "site": "spread", "area": [30, 90] }
+    ],
+    "barbarian-celtic": [
+      { "role": "worship.grove", "function": "collective", "per": 0, "minPop": 100, "max": 1, "site": "edge", "area": [600, 3000], "landmark": true, "district": "religious" }
+    ],
+    "celtic-oppidum": [
+      { "role": "worship.grove", "function": "collective", "per": 0, "minPop": 100, "max": 1, "site": "edge", "area": [600, 3000], "landmark": true, "district": "religious" }
+    ],
+    "ksar-oasis": [
+      { "role": "storage.granary", "function": "warehouse", "per": 0, "minPop": 100, "max": 1, "site": "hill", "area": [400, 2000], "landmark": true }
+    ],
+    "swahili-stone-town": [
+      { "role": "commerce.warehouse", "function": "warehouse", "per": 2000, "minPop": 600, "max": 30, "site": "quay", "area": [200, 900], "requires": "water", "district": "port" }
+    ],
+    "bagan": [
+      { "role": "worship.stupa", "function": "collective", "per": 400, "minPop": 100, "max": 60, "site": "spread", "area": [60, 600] },
+      { "role": "worship.pagoda", "function": "collective", "per": 0, "minPop": 800, "max": 1, "site": "spread", "area": [600, 4000], "landmark": true, "district": "religious" }
+    ],
+    "newar": [
+      { "role": "worship.pagoda", "function": "collective", "per": 3000, "minPop": 400, "max": 10, "site": "nucleus", "area": [100, 500], "landmark": true, "district": "religious" },
+      { "role": "worship.stupa", "function": "collective", "per": 4000, "minPop": 600, "max": 8, "site": "spread", "area": [80, 400] }
+    ],
+    "tibetan-monastery": [
+      { "role": "worship.monastery", "function": "collective", "per": 0, "minPop": 100, "max": 1, "site": "hill", "area": [1500, 9000], "landmark": true, "district": "religious" },
+      { "role": "worship.stupa", "function": "collective", "per": 1500, "minPop": 100, "max": 12, "site": "spread", "area": [40, 300] }
+    ],
+    "himalayan-terraces": [
+      { "role": "worship.stupa", "function": "collective", "per": 2000, "minPop": 150, "max": 6, "site": "hill", "area": [40, 300] }
+    ],
+    "khmer": [
+      { "role": "civic.tank", "function": "common", "per": 0, "minPop": 500, "max": 1, "site": "spread", "area": [3000, 30000] }
+    ],
+    "dravidian-temple": [
+      { "role": "civic.tank", "function": "common", "per": 0, "minPop": 600, "max": 1, "site": "nucleus", "area": [800, 6000] }
+    ],
+    "rajput-fort": [
+      { "role": "civic.stepwell", "function": "collective", "per": 3000, "minPop": 300, "max": 20, "site": "spread", "area": [150, 600] },
+      { "role": "elite.palace", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "hill", "area": [4000, 25000], "landmark": true, "district": "elite" }
+    ],
+    "maya": [
+      { "role": "civic.observatory", "function": "collective", "per": 0, "minPop": 2000, "max": 1, "site": "nucleus", "area": [300, 1500], "landmark": true, "district": "religious" }
+    ],
+    "mesopotamian": [
+      { "role": "worship.ziggurat", "function": "collective", "per": 0, "minPop": 800, "max": 1, "site": "nucleus", "area": [2000, 15000], "landmark": true, "district": "religious" },
+      { "role": "civic.observatory", "function": "collective", "per": 0, "minPop": 10000, "max": 1, "site": "nucleus", "area": [200, 900] }
+    ],
+    "egyptian-planned": [
+      { "role": "worship.mortuary-temple", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "edge", "area": [1500, 9000], "landmark": true, "district": "religious" }
+    ],
+    "nubian-fortified": [
+      { "role": "funerary.mausoleum", "function": "collective", "per": 2000, "minPop": 500, "max": 12, "site": "edge", "area": [60, 400] }
+    ],
+    "indus-planned": [
+      { "role": "civic.tank", "function": "common", "per": 0, "minPop": 1000, "max": 1, "site": "hill", "area": [300, 2000] },
+      { "role": "storage.granary", "function": "warehouse", "per": 0, "minPop": 1500, "max": 1, "site": "hill", "area": [600, 2500], "landmark": true }
+    ],
+    "ethiopian-highland": [
+      { "role": "worship.monastery", "function": "collective", "per": 0, "minPop": 300, "max": 1, "site": "hill", "area": [800, 4000], "landmark": true, "district": "religious" },
+      { "role": "elite.palace", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "hill", "area": [2000, 12000], "landmark": true, "district": "elite" }
+    ],
+    "great-zimbabwe": [
+      { "role": "worship.precinct", "function": "collective", "per": 0, "minPop": 300, "max": 1, "site": "hill", "area": [1500, 9000], "landmark": true, "district": "religious" }
+    ],
+    "mongol-ordu": [
+      { "role": "worship.temple", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "nucleus", "area": [300, 1500], "landmark": true, "district": "religious" }
+    ],
+    "mississippian": [
+      { "role": "worship.temple.major", "function": "collective", "per": 0, "minPop": 500, "max": 1, "site": "nucleus", "area": [2000, 15000], "landmark": true, "district": "religious" }
+    ],
+    "native-iroquoian": [
+      { "role": "civic.longhall", "function": "collective", "per": 0, "minPop": 100, "max": 1, "site": "nucleus", "area": [200, 900], "landmark": true, "district": "civic" }
+    ]
+  },
+  "_doc": "Service catalogue for urban programmes. One entry = one building role. count = 0 below minPop, else 1 when per = 0, else clamp(floor(pop / per), 1, max). area = useful m2 per site, interpolated between area[0] and area[1] by log10(pop / minPop) / 2 (perCapita overrides it, clamped to area). site: nucleus | gate | waterfront | river (mills: river front, else any shore) | quay (port: in a town whose plan has quay streets, only a block a quay serves (roles::site_admissible), and the quays' quarters form the port district; without quays, sea or lake shore first, then river) | shore (sea or lake front only: lighthouse) | downstream (lowest river reach) | hill | edge | spread. The layout's singularDensity k (0..3, default 1) divides per and minPop (by sqrt k) and multiplies max for every entry but markets, commons and the nucleus landmark; at 0 those others drop unless an explicit town function raises them. maxPop (optional) drops the entry above that population. requires: water = only on a waterfront block. function stays one of the six houses functions (market/common are the open_space demands). district = preferred district role prefix. The nucleus table maps catalogue.json cultures[c].nucleus.kind to the role that becomes the central landmark.",
+  "_docStates": "Programme context state. decay = share of built allocations given the suffix (households 0, label suffix); a declining town raises its dwelling demand by 1/(1-decay) so the living population keeps its homes and the surplus stands empty.",
+  "states": {
+    "thriving": { "decay": 0, "suffix": "", "label": "" },
+    "declining": { "decay": 0.2, "suffix": ".abandoned", "label": " à l’abandon" },
+    "abandoned": { "decay": 1, "suffix": ".abandoned", "label": " à l’abandon" },
+    "ruined": { "decay": 1, "suffix": ".ruin", "label": " en ruine" }
+  },
+  "_docRuinShare": "Culture ruins by demographic class: a share of the built lots stands in ruins whatever the state (giants' villages keep their fallen halls; their towns are rebuilt).",
+  "ruinShare": { "giant-hold": { "hamlet": 0.3, "village": 0.3 }, "post-apocalyptic-ruins": { "hamlet": 0.5, "village": 0.5, "town": 0.45, "city": 0.4, "metropolis": 0.35, "megacity": 0.3 } },
+  "_docIsolated": "Programme context roles for a single structure (no town): one intent on one unsubdivided domain.",
+  "isolated": {
+    "isolated-farm": { "role": "dwelling.farm", "function": "domestic" },
+    "roadside-temple": { "role": "worship.wayside", "function": "collective", "landmark": true },
+    "isolated-shrine": { "role": "worship.shrine", "function": "collective", "landmark": true },
+    "isolated-mill": { "role": "craft.mill", "function": "workshop" },
+    "isolated-inn": { "role": "commerce.inn", "function": "collective" },
+    "isolated-tower": { "role": "defence.tower", "function": "collective", "landmark": true },
+    "activity": { "role": "craft.activity", "function": "workshop" }
+  },
+  "_docRural": "Added to every family below maxPop: the shared (tithe) barn of a village. Below it a hamlet is only farms: dwelling.farm = house, barn and yard on one lot.",
+  "rural": [
+    { "role": "storage.barn", "function": "warehouse", "per": 250, "minPop": 60, "maxPop": 499, "max": 2, "site": "edge", "area": [150, 400] }
+  ],
+  "_docHarbour": "Shared port roles, added only when actual quay streets exist; a family's own quay warehouse takes precedence. Buildings use the culture's normal architectural material mapping.",
+  "harbour": [
+    { "role": "commerce.fishmarket", "function": "collective", "per": 0, "minPop": 800, "max": 1, "site": "quay", "area": [120, 600], "requires": "water", "district": "port" },
+    { "role": "commerce.warehouse", "function": "warehouse", "per": 1200, "minPop": 400, "max": 40, "site": "quay", "area": [220, 800], "requires": "water", "district": "port" },
+    { "role": "civic.harbour", "function": "collective", "per": 0, "minPop": 500, "max": 1, "site": "quay", "area": [120, 300], "requires": "water", "district": "port" },
+    { "role": "craft.boatshed", "function": "workshop", "per": 5000, "minPop": 500, "max": 12, "site": "quay", "area": [120, 450], "requires": "water", "district": "port" },
+    { "role": "civic.customs", "function": "collective", "per": 0, "minPop": 2500, "max": 1, "site": "quay", "area": [200, 900], "requires": "water", "landmark": true, "district": "port" },
+    { "role": "civic.lighthouse", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "shore", "area": [40, 160], "requires": "water", "landmark": true, "district": "port" },
+    { "role": "craft.shipyard", "function": "workshop", "per": 12000, "minPop": 2000, "max": 4, "site": "quay", "area": [800, 4000], "requires": "water", "district": "port" },
+    { "role": "craft.ropewalk", "function": "workshop", "per": 0, "minPop": 4000, "max": 1, "site": "quay", "area": [300, 1200], "district": "port" },
+    { "role": "commerce.tavern", "function": "collective", "per": 1500, "minPop": 600, "max": 20, "site": "quay", "area": [80, 250], "district": "port" }
+  ],
+  "_docLabels": "French labels shown by the UI (allocation.label, district.label). familyLabels override per culture family; an unknown role falls back to its longest known prefix.",
+  "labels": {
+    "dwelling": "Habitation", "dwelling.row": "Maison en bande", "dwelling.house": "Maison", "dwelling.courtyard": "Maison à cour",
+    "dwelling.compound": "Enclos familial", "dwelling.platform": "Maison sur plateforme", "dwelling.tenement": "Immeuble de rapport",
+    "dwelling.townhouse": "Maison bourgeoise", "dwelling.mansion": "Hôtel particulier", "dwelling.shop": "Échoppe", "dwelling.farm": "Ferme (logis, grange et cour)",
+    "worship": "Lieu de culte", "worship.parish": "Église paroissiale", "worship.cathedral": "Cathédrale", "worship.monastery": "Monastère",
+    "worship.mosque.friday": "Mosquée du vendredi", "worship.masjid": "Mosquée de quartier", "worship.temple": "Temple", "worship.temple.major": "Grand temple",
+    "worship.confucian-temple": "Temple de Confucius", "worship.city-god-temple": "Temple du dieu de la ville", "worship.shrine": "Sanctuaire",
+    "worship.pyramid-precinct": "Enceinte de la pyramide", "worship.ushnu": "Ushnu (plate-forme cérémonielle)", "worship.huaca": "Huaca (lieu sacré)",
+    "worship.hof": "Hof (temple)", "worship.kiva": "Kiva", "worship.capitolium": "Capitole", "worship.precinct": "Enceinte sacrée", "worship.grove": "Bois sacré",
+    "worship.mortuary-temple": "Temple funéraire", "worship.wayside": "Oratoire",
+    "funerary": "Monument funéraire", "funerary.mausoleum": "Mausolée",
+    "commerce": "Commerce", "commerce.market": "Place du marché", "commerce.market.gate": "Marché de porte", "commerce.market.ward": "Marché de quartier",
+    "commerce.inn": "Auberge", "commerce.souk": "Souk", "commerce.caravanserai": "Caravansérail", "commerce.funduq": "Fondouk", "commerce.bazaar": "Bazar",
+    "commerce.dharamshala": "Dharamshala (gîte des pèlerins)", "commerce.tianguis": "Tianguis (marché)", "commerce.macellum": "Macellum (marché couvert)",
+    "commerce.taberna": "Taberna", "commerce.maidan": "Maidan", "commerce.warehouse": "Entrepôt du port", "civic.harbour": "Capitainerie et douane", "commerce.fishmarket": "Marché aux poissons",
+    "commerce.emporium": "Emporium (marché du port)",
+    "civic": "Édifice public", "civic.hall": "Salle commune", "civic.townhall": "Hôtel de ville", "civic.hospital": "Hôtel-Dieu", "civic.university": "Université",
+    "civic.guildhall": "Maison des corporations", "civic.bathhouse": "Étuves", "civic.madrasa": "Médersa", "civic.maristan": "Maristan (hôpital)",
+    "civic.hammam": "Hammam", "civic.yamen": "Yamen (siège du magistrat)", "civic.tank": "Bassin sacré", "civic.stepwell": "Puits à degrés",
+    "civic.ballcourt": "Jeu de balle", "civic.calmecac": "Calmecac (école)", "civic.kallanka": "Kallanka (grande halle)", "civic.longhall": "Grande halle",
+    "civic.khan-tent": "Tente du khan", "civic.palace": "Palais", "civic.council-house": "Maison du conseil", "civic.forum": "Forum", "civic.basilica": "Basilique",
+    "civic.thermae": "Thermes", "civic.theatre": "Théâtre", "civic.amphitheatre": "Amphithéâtre", "civic.academy": "Académie", "civic.drum-tower": "Tour du tambour",
+    "civic.wizard-tower": "Tour du mage", "civic.clocktower": "Beffroi", "civic.ghat": "Ghats (marches du fleuve)",
+    "defence": "Fortification", "defence.keep": "Donjon", "defence.barracks": "Caserne", "defence.kasbah": "Kasbah", "defence.castle": "Château", "defence.fort": "Fort",
+    "defence.fortress": "Forteresse", "defence.tower": "Tour de guet",
+    "elite": "Résidence noble", "elite.palace": "Palais", "elite.kancha-palace": "Palais (kancha)",
+    "craft": "Atelier", "craft.workshop": "Atelier", "craft.smithy": "Forge", "craft.tannery": "Tannerie", "craft.dyer": "Teinturerie", "craft.mill": "Moulin à eau", "craft.activity": "Site d’activité",
+    "craft.bakery": "Boulangerie", "craft.brewery": "Brasserie", "craft.obsidian": "Atelier d’obsidienne", "craft.weaver": "Atelier de tissage",
+    "craft.boatshed": "Abri à bateaux", "craft.fullonica": "Foulerie", "craft.potter": "Poterie", "craft.alchemist": "Officine d’alchimiste",
+    "storage": "Entrepôt", "storage.granary": "Grenier", "storage.qollqa": "Qollqa (grenier d’État)", "storage.horreum": "Horreum (entrepôt)", "storage.barn": "Grange commune",
+    "open": "Espace ouvert", "open.garden": "Jardin", "open.common": "Communal", "open.fallow": "Friche", "open.cemetery": "Cimetière", "open.thing": "Lieu du thing",
+    "open.corral": "Enclos à bétail", "open.kraal": "Kraal", "open.plaza": "Place", "open.necropolis": "Nécropole",
+    "lore": "Lieu légendaire", "lore.temple": "Temple légendaire", "lore.palace": "Palais légendaire", "lore.necropolis": "Nécropole légendaire", "lore.magic": "Lieu de magie",
+    "civic.library": "Bibliothèque", "civic.arena": "Arène", "civic.hippodrome": "Hippodrome", "civic.lighthouse": "Phare", "civic.observatory": "Observatoire",
+    "civic.prison": "Prison", "civic.customs": "Douane", "commerce.exchange": "Bourse des marchands", "commerce.tavern": "Taverne", "commerce.stable": "Écuries",
+    "commerce.warehouse.market": "Entrepôt marchand", "craft.shipyard": "Chantier naval", "craft.ropewalk": "Corderie", "craft.sawmill": "Scierie", "craft.kiln": "Four de potier et tuilerie",
+    "defence.arsenal": "Arsenal", "worship.baptistery": "Baptistère", "worship.stupa": "Stupa", "worship.pagoda": "Pagode", "worship.ziggurat": "Ziggourat",
+    "elite.villa": "Villa", "elite.manor": "Manoir", "civic.arch": "Arc monumental",
+    "civic.great-forge": "Grande forge", "civic.vault": "Chambre forte", "civic.moot-tree": "Arbre du conseil", "civic.war-pit": "Fosse de guerre",
+    "civic.spore-hall": "Salle des spores", "civic.web-spire": "Flèche de toile", "civic.tide-hall": "Salle des marées", "civic.giant-hall": "Halle des géants",
+    "civic.clockwork": "Atelier d’horlogerie",
+    "civic.station": "Gare", "civic.courthouse": "Palais de justice", "civic.school": "École", "civic.fire-station": "Caserne de pompiers",
+    "civic.power-house": "Centrale électrique", "civic.water-tower": "Château d’eau",
+    "commerce.office-block": "Immeuble de bureaux", "commerce.skyscraper": "Gratte-ciel", "commerce.department-store": "Grand magasin",
+    "commerce.bank": "Banque", "commerce.hotel": "Hôtel", "commerce.market.hall": "Halle du marché",
+    "craft.factory": "Usine", "storage.elevator": "Silo à grains", "worship.chapel": "Chapelle", "worship.synagogue": "Synagogue",
+    "housing": "Logement collectif", "housing.slab": "Barre d’habitation", "housing.tower": "Tour d’habitation", "commerce.mall": "Centre commercial", "civic.stadium": "Stade", "civic.power-plant": "Centrale thermique", "civic.power-plant.atomic": "Centrale atomique", "civic.tv-tower": "Tour de télévision", "civic.arcology": "Arcologie", "civic.megastructure": "Mégastructure", "civic.habitat-dome": "Dôme d’habitat", "civic.habitat-dome.ward": "Dôme de quartier", "civic.vertical-farm": "Ferme verticale", "civic.monument": "Monument", "civic.hive": "Ruche", "civic.organic-spire": "Flèche organique"
+  },
+  "familyLabels": {
+    "islamic": { "dwelling.courtyard": "Maison à patio (dar)", "dwelling.shop": "Boutique de souk", "open.cemetery": "Cimetière musulman", "storage.granary": "Agadir (grenier)",
+      "commerce.tavern": "Maison de café (qahwa)", "funerary.mausoleum": "Qubba (tombeau de saint)", "civic.library": "Dar al-ʿilm (bibliothèque)" },
+    "chinese": { "dwelling.courtyard": "Siheyuan", "dwelling.shop": "Boutique sur rue", "commerce.warehouse": "Entrepôt fluvial",
+      "commerce.tavern": "Maison de thé", "commerce.stable": "Relais de poste (yi)", "civic.arch": "Paifang (arc commémoratif)", "civic.academy": "Shuyuan (académie)" },
+    "japanese": { "dwelling.row": "Machiya", "dwelling.shop": "Machiya-boutique", "commerce.inn": "Ryokan", "worship.temple": "Temple bouddhique", "worship.shrine": "Sanctuaire shintô", "storage.granary": "Kura (entrepôt)", "craft.brewery": "Brasserie de saké",
+      "commerce.tavern": "Chaya (maison de thé)", "civic.bathhouse": "Sentō (bains publics)", "elite.manor": "Yashiki (résidence de samouraï)", "civic.theatre": "Théâtre kabuki" },
+    "classical": { "dwelling.courtyard": "Domus", "dwelling.tenement": "Insula", "dwelling.shop": "Taberna sur rue",
+      "commerce.stable": "Stabulum (écuries)", "civic.hippodrome": "Cirque", "civic.prison": "Carcer (prison)", "civic.arch": "Arc de triomphe", "civic.lighthouse": "Pharos (phare)" },
+    "norse": { "dwelling.house": "Maison longue", "dwelling.row": "Maison longue", "commerce.tavern": "Salle à hydromel" },
+    "indian": { "dwelling.courtyard": "Haveli", "worship.shrine": "Autel de quartier", "civic.observatory": "Jantar Mantar (observatoire)", "worship.temple.major": "Grand temple à gopuram" },
+    "steppe": { "dwelling.house": "Yourte", "dwelling.compound": "Campement familial", "commerce.stable": "Relais de poste (örtöö)" },
+    "andean": { "commerce.inn": "Tambo (relais)", "worship.temple.major": "Temple du Soleil" },
+    "native": { "worship.temple.major": "Tertre à plate-forme" },
+    "ancient": { "commerce.tavern": "Maison de bière" },
+    "industrial": { "dwelling.row": "Maison en rangée", "dwelling.tenement": "Immeuble de rapport", "dwelling.shop": "Immeuble à boutique", "commerce.market": "Square de l’hôtel de ville",
+      "civic.townhall": "Hôtel de ville", "worship.parish": "Église", "commerce.tavern": "Saloon", "commerce.warehouse": "Entrepôt", "craft.workshop": "Atelier et fabrique",
+      "open.garden": "Parc public", "civic.theatre": "Théâtre", "civic.library": "Bibliothèque publique", "civic.tv-tower": "Mât d’amarrage de dirigeables" },
+    "modernist": { "commerce.market": "Place centrale", "civic.townhall": "Palais administratif", "commerce.tavern": "Café", "open.garden": "Parc de la culture", "craft.workshop": "Atelier" },
+    "contemporary": { "commerce.market": "Place centrale", "civic.townhall": "Hôtel de ville", "commerce.tavern": "Café", "open.garden": "Parc urbain", "craft.workshop": "Atelier", "commerce.warehouse": "Entrepôt portuaire" },
+    "informal": { "commerce.market": "Marché ouvert", "civic.townhall": "Mairie d’arrondissement", "commerce.tavern": "Buvette", "craft.workshop": "Atelier de rue" },
+    "futuristic": { "commerce.market": "Plaza", "civic.townhall": "Centre administratif", "commerce.tavern": "Bar", "open.garden": "Parc", "craft.workshop": "Atelier de fabrication", "civic.tv-tower": "Tour de transmission" },
+    "alien": { "commerce.market": "Lieu d’échange", "craft.workshop": "Chambre de croissance", "open.garden": "Jardin de frai" },
+    "clan": { "dwelling.house": "Maison de famille", "dwelling.compound": "Maisonnée du clan", "civic.council-house": "Maison commune du clan",
+      "storage.granary": "Cache ou grenier sur poteaux", "craft.workshop": "Séchoir et atelier", "open.plaza": "Place des rassemblements" }, "insular": {"elite.palace": "Kraton (palais)", "commerce.market": "Pasar (marché)", "worship.temple.major": "Candi (grand temple)", "worship.shrine": "Pura de quartier", "civic.hall": "Pendopo (pavillon d’assemblée)", "commerce.inn": "Pesanggrahan (relais)", "civic.bathhouse": "Petirtaan (bassin sacré)", "storage.granary": "Lumbung (grenier)", "dwelling.compound": "Pekarangan (enclos familial)", "craft.dyer": "Atelier de batik", "commerce.tavern": "Warung"} },
+  "districtLabels": {
+    "civic": "Quartier civique", "market": "Quartier du marché", "religious": "Quartier religieux", "port": "Quartier du port", "elite": "Quartier patricien",
+    "commoner": "Quartier populaire", "poor": "Faubourg pauvre", "garrison": "Quartier de la garnison", "gardens": "Quartier des jardins", "foreign": "Quartier étranger",
+    "craft": "Quartier artisanal", "craft:tanners": "Quartier des tanneurs", "craft:smiths": "Quartier des forgerons", "craft:weavers": "Quartier des tisserands",
+    "craft:dyers": "Quartier des teinturiers", "craft:knappers": "Quartier des tailleurs d’obsidienne", "craft:fullers": "Quartier des foulons", "craft:potters": "Quartier des potiers"
+  },
+  "familyDistrictLabels": {
+    "islamic": { "market": "Quartier des souks", "elite": "Quartier des notables" },
+    "classical": { "civic": "Quartier du forum" },
+    "japanese": { "garrison": "Quartier des samouraïs", "market": "Quartier marchand (machi)" },
+    "chinese": { "civic": "Quartier du yamen" },
+    "clan": { "civic": "Maison commune et place", "commoner": "Maisonnées" }, "insular": {"elite": "Kraton et dalem des priyayi", "market": "Pasar et kampung marchands", "religious": "Enceinte du candi"} },
+  "nucleus": {
+    "market": "commerce.market",
+    "mosque": "worship.mosque.friday",
+    "mud-mosque": "worship.mosque.friday",
+    "drum-tower": "civic.drum-tower",
+    "castle": "defence.castle",
+    "temple": "worship.temple.major",
+    "forum": "civic.forum",
+    "precinct": "worship.precinct",
+    "ushnu": "worship.ushnu",
+    "maidan": "commerce.maidan",
+    "grove": "worship.grove",
+    "mortuary": "worship.mortuary-temple",
+    "wizard-tower": "civic.wizard-tower",
+    "clocktower": "civic.clocktower",
+    "royal-enclosure": "civic.palace"
+  },
+  "cultures": {
+    "european-organic": "european", "bastide": "european", "hanseatic": "european", "venetian-lagoon": "european",
+    "halfling": "european", "byzantine-greek": "european", "russian-kremlin": "european",
+    "medina": "islamic", "persian": "islamic", "ottoman": "islamic", "ksar-oasis": "islamic", "oasis-caravan": "islamic",
+    "swahili-stone-town": "islamic", "sahel": "islamic",
+    "chinese": "chinese", "korean": "chinese",
+    "japanese-jokamachi": "japanese",
+    "indian-temple": "indian", "khmer": "indian", "javanese-courts": "insular", "himalayan-terraces": "indian", "newar": "indian",
+    "aztec": "mesoamerican", "maya": "mesoamerican",
+    "inca": "andean",
+    "barbarian": "norse", "barbarian-celtic": "norse", "barbarian-norse": "norse", "norse-ringfort": "norse",
+    "celtic-oppidum": "norse", "orcish": "norse",
+    "nomad-camp": "steppe",
+    "yoruba": "african", "kraal": "african",
+    "native-iroquoian": "native", "native-plains": "native", "native-pueblo": "native", "mississippian": "native",
+    "al-andalus": "islamic", "hausa-kano": "islamic", "hadhrami-tower": "islamic",
+    "italian-comune": "european", "flemish-cloth-town": "european", "rynek-town": "european", "slavic-gord": "european",
+    "caucasian-highland": "european",
+    "ethiopian-highland": "african", "great-zimbabwe": "african",
+    "rajput-fort": "indian", "dravidian-temple": "indian", "bagan": "indian", "tibetan-monastery": "indian",
+    "vietnamese-citadel": "chinese", "mongol-ordu": "steppe",
+    "maori-pa": "clan", "pnw-plank-village": "clan", "inuit-camp": "clan", "siberian-camp": "clan", "guarani-village": "clan",
+    "budj-bim": "clan",
+    "lizardfolk-swamp": "fantasy", "merfolk-tidal": "fantasy", "giant-hold": "fantasy", "goblin-warren": "fantasy",
+    "roman-core": "classical",
+    "egyptian-planned": "ancient", "nubian-fortified": "ancient", "mesopotamian": "ancient", "levantine-tell": "ancient",
+    "indus-planned": "ancient",
+    "elven": "fantasy", "dwarven": "fantasy", "wizard-city": "fantasy", "gnomish": "fantasy", "drow-enclave": "fantasy",
+    "duergar-hold": "fantasy", "myconid-colony": "fantasy", "necropolis": "necropolis", "stilt-town": "fantasy",
+    "american-grid": "industrial",
+    "industrial-victorian": "industrial",
+    "haussmannian": "industrial",
+    "belle-epoque": "industrial",
+    "mediterranean-modern": "industrial",
+    "garden-city": "industrial",
+    "art-deco-metropolis": "industrial",
+    "modernist-functionalist": "modernist",
+    "soviet-socialist": "modernist",
+    "american-suburbia": "contemporary",
+    "european-contemporary": "contemporary",
+    "global-high-rise": "contemporary",
+    "gulf-contemporary": "contemporary",
+    "informal-urban-expansion": "informal",
+    "eco-city": "contemporary",
+    "japanese-contemporary": "contemporary",
+    "chinese-megacity": "contemporary",
+    "korean-high-rise": "contemporary",
+    "southeast-asian-tropical": "contemporary",
+    "south-asian-metropolis": "contemporary",
+    "latin-american-grid": "industrial",
+    "latin-american-hillside": "informal",
+    "north-african-contemporary": "contemporary",
+    "sub-saharan-african-metropolis": "informal",
+    "middle-eastern-contemporary": "contemporary",
+    "australian-suburban": "contemporary",
+    "post-socialist-european": "modernist",
+    "cyberpunk": "futuristic",
+    "solarpunk": "futuristic",
+    "dieselpunk": "industrial",
+    "dystopian-brutalism": "modernist",
+    "atompunk-retrofuturist": "futuristic",
+    "post-apocalyptic-ruins": "informal",
+    "corporate-arcology": "futuristic",
+    "futuristic-space-colony": "futuristic",
+    "biopunk-organic-city": "alien"
+  },
+  "occupancy": {
+    "_doc": "householdSize = persons per domestic unit; floorPerHousehold = useful floor m2 per unit; maxPerPlot caps tenements.",
+    "european": { "householdSize": 4.5, "floorPerHousehold": 55, "maxPerPlot": 6 },
+    "islamic": { "householdSize": 7, "floorPerHousehold": 70, "maxPerPlot": 4 },
+    "chinese": { "householdSize": 6.5, "floorPerHousehold": 70, "maxPerPlot": 5 },
+    "japanese": { "householdSize": 5, "floorPerHousehold": 45, "maxPerPlot": 6 },
+    "indian": { "householdSize": 7, "floorPerHousehold": 60, "maxPerPlot": 5 },
+    "insular": { "householdSize": 4.5, "floorPerHousehold": 60, "maxPerPlot": 4, "provenance": "generic-compatibility-defaults", "calibration": "not-culture-calibrated", "_doc": "Explicitly retains the former generic fallback values; not a historical or native habitation norm." },
+    "mesoamerican": { "householdSize": 6.5, "floorPerHousehold": 60, "maxPerPlot": 4 },
+    "andean": { "householdSize": 6, "floorPerHousehold": 50, "maxPerPlot": 6 },
+    "norse": { "householdSize": 8, "floorPerHousehold": 90, "maxPerPlot": 3 },
+    "steppe": { "householdSize": 5.5, "floorPerHousehold": 35, "maxPerPlot": 3 },
+    "african": { "householdSize": 8, "floorPerHousehold": 60, "maxPerPlot": 4 },
+    "native": { "householdSize": 7, "floorPerHousehold": 55, "maxPerPlot": 8 },
+    "classical": { "householdSize": 5, "floorPerHousehold": 45, "maxPerPlot": 12 },
+    "ancient": { "householdSize": 6, "floorPerHousehold": 50, "maxPerPlot": 4 },
+    "fantasy": { "householdSize": 5, "floorPerHousehold": 60, "maxPerPlot": 6 },
+    "necropolis": { "householdSize": 5, "floorPerHousehold": 60, "maxPerPlot": 6 },
+    "clan": { "householdSize": 8, "floorPerHousehold": 40, "maxPerPlot": 6 },
+    "industrial": { "householdSize": 5, "floorPerHousehold": 50, "maxPerPlot": 12 },
+    "modernist": { "householdSize": 3.5, "floorPerHousehold": 55, "maxPerPlot": 80 },
+    "contemporary": { "householdSize": 3, "floorPerHousehold": 70, "maxPerPlot": 120 },
+    "informal": { "householdSize": 5.5, "floorPerHousehold": 35, "maxPerPlot": 12 },
+    "futuristic": { "householdSize": 2.5, "floorPerHousehold": 50, "maxPerPlot": 200 },
+    "alien": { "householdSize": 6, "floorPerHousehold": 60, "maxPerPlot": 12 }
+  },
+  "families": {
+    "european": [
+      { "role": "commerce.warehouse", "function": "warehouse", "per": 1500, "minPop": 800, "max": 40, "site": "quay", "area": [300, 1200], "requires": "water", "district": "port" },
+      { "role": "commerce.fishmarket", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "quay", "area": [300, 1400], "requires": "water", "district": "port" },
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [200, 20000], "perCapita": 0.35, "landmark": true, "district": "market" },
+      { "role": "civic.clocktower", "function": "collective", "per": 0, "minPop": 4000, "max": 1, "site": "nucleus", "area": [120, 500], "landmark": true, "district": "civic" },
+      { "role": "commerce.exchange", "function": "collective", "per": 0, "minPop": 15000, "max": 1, "site": "nucleus", "area": [600, 2500], "landmark": true, "district": "market" },
+      { "role": "civic.library", "function": "collective", "per": 0, "minPop": 20000, "max": 1, "site": "spread", "area": [600, 2500], "landmark": true },
+      { "role": "elite.manor", "function": "collective", "per": 0, "minPop": 150, "maxPop": 3000, "max": 1, "site": "edge", "area": [300, 1400], "district": "elite" },
+      { "role": "defence.arsenal", "function": "collective", "per": 0, "minPop": 30000, "max": 1, "site": "gate", "area": [1500, 6000], "district": "garrison" },
+      { "role": "civic.prison", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "gate", "area": [300, 1400] },
+      { "role": "civic.customs", "function": "collective", "per": 0, "minPop": 6000, "max": 1, "site": "gate", "area": [150, 600] },
+      { "role": "civic.townhall", "function": "collective", "per": 0, "minPop": 2000, "max": 1, "site": "nucleus", "area": [400, 2400], "landmark": true, "district": "civic" },
+      { "role": "worship.cathedral", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "nucleus", "area": [2500, 9000], "landmark": true, "district": "religious" },
+      { "role": "defence.keep", "function": "collective", "per": 0, "minPop": 800, "max": 1, "site": "hill", "area": [1500, 15000], "landmark": true, "district": "elite" },
+      { "role": "elite.palace", "function": "collective", "per": 0, "minPop": 30000, "max": 1, "site": "hill", "area": [4000, 20000], "landmark": true, "district": "elite" },
+      { "role": "worship.monastery", "function": "collective", "per": 15000, "minPop": 3000, "max": 8, "site": "edge", "area": [3000, 12000], "landmark": true },
+      { "role": "civic.hospital", "function": "collective", "per": 20000, "minPop": 6000, "max": 6, "site": "edge", "area": [1500, 5000] },
+      { "role": "civic.university", "function": "collective", "per": 0, "minPop": 25000, "max": 1, "site": "spread", "area": [2500, 9000], "landmark": true },
+      { "role": "defence.barracks", "function": "collective", "per": 40000, "minPop": 30000, "max": 6, "site": "gate", "area": [2000, 8000], "district": "garrison" },
+      { "role": "commerce.market.gate", "function": "market", "per": 10000, "minPop": 8000, "max": 8, "site": "gate", "area": [600, 3000] },
+      { "role": "open.cemetery", "function": "common", "per": 8000, "minPop": 5000, "max": 12, "site": "edge", "area": [1500, 8000] },
+      { "role": "worship.parish", "function": "collective", "per": 1800, "minPop": 150, "max": 60, "site": "spread", "area": [250, 1200] },
+      { "role": "civic.guildhall", "function": "collective", "per": 12000, "minPop": 6000, "max": 8, "site": "nucleus", "area": [300, 1200], "district": "market" },
+      { "role": "civic.bathhouse", "function": "collective", "per": 6000, "minPop": 3000, "max": 10, "site": "waterfront", "area": [150, 600] },
+      { "role": "commerce.inn", "function": "collective", "per": 800, "minPop": 250, "max": 50, "site": "gate", "area": [180, 600] },
+      { "role": "commerce.tavern", "function": "collective", "per": 600, "minPop": 150, "max": 80, "site": "spread", "area": [80, 300], "district": "market" },
+      { "role": "commerce.stable", "function": "workshop", "per": 1000, "minPop": 300, "max": 40, "site": "gate", "area": [120, 450] },
+      { "role": "commerce.warehouse.market", "function": "warehouse", "per": 4000, "minPop": 2000, "max": 12, "site": "nucleus", "area": [200, 900], "district": "market" },
+      { "role": "craft.smithy", "function": "workshop", "per": 1000, "minPop": 150, "max": 40, "site": "gate", "area": [80, 300], "district": "craft:smiths" },
+      { "role": "craft.tannery", "function": "workshop", "per": 4000, "minPop": 2000, "max": 12, "site": "downstream", "area": [300, 1200], "district": "craft:tanners" },
+      { "role": "craft.dyer", "function": "workshop", "per": 6000, "minPop": 4000, "max": 8, "site": "downstream", "area": [300, 900], "district": "craft:tanners" },
+      { "role": "craft.mill", "function": "workshop", "per": 2500, "minPop": 200, "max": 12, "site": "river", "area": [150, 500], "requires": "water" },
+      { "role": "craft.sawmill", "function": "workshop", "per": 6000, "minPop": 800, "max": 6, "site": "river", "area": [200, 700], "requires": "water" },
+      { "role": "craft.kiln", "function": "workshop", "per": 4000, "minPop": 600, "max": 12, "site": "edge", "area": [100, 400], "district": "craft:potters" },
+      { "role": "craft.brewery", "function": "workshop", "per": 4000, "minPop": 1200, "max": 12, "site": "spread", "area": [150, 600] },
+      { "role": "craft.ropewalk", "function": "workshop", "per": 0, "minPop": 6000, "max": 1, "site": "edge", "area": [400, 1400] },
+      { "role": "craft.bakery", "function": "workshop", "per": 1000, "minPop": 300, "max": 60, "site": "spread", "area": [80, 250] },
+      { "role": "storage.granary", "function": "warehouse", "per": 3000, "minPop": 800, "max": 12, "site": "spread", "area": [300, 1500] }
+    ],
+    "islamic": [
+      { "role": "commerce.warehouse", "function": "warehouse", "per": 2000, "minPop": 800, "max": 30, "site": "quay", "area": [300, 1200], "requires": "water", "district": "port" },
+      { "role": "commerce.fishmarket", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "quay", "area": [300, 1400], "requires": "water", "district": "port" },
+      { "role": "worship.mosque.friday", "function": "collective", "per": 40000, "minPop": 1500, "max": 6, "site": "nucleus", "area": [1500, 12000], "landmark": true, "district": "religious" },
+      { "role": "commerce.souk", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [400, 20000], "perCapita": 0.4, "landmark": true, "district": "market" },
+      { "role": "defence.kasbah", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "hill", "area": [3000, 20000], "landmark": true, "district": "garrison" },
+      { "role": "elite.palace", "function": "collective", "per": 0, "minPop": 30000, "max": 1, "site": "hill", "area": [5000, 25000], "landmark": true, "district": "elite" },
+      { "role": "commerce.caravanserai", "function": "collective", "per": 6000, "minPop": 1500, "max": 12, "site": "gate", "area": [800, 3000], "landmark": true },
+      { "role": "civic.madrasa", "function": "collective", "per": 15000, "minPop": 5000, "max": 10, "site": "nucleus", "area": [500, 2500], "district": "religious" },
+      { "role": "civic.maristan", "function": "collective", "per": 30000, "minPop": 10000, "max": 4, "site": "spread", "area": [1000, 4000] },
+      { "role": "open.cemetery", "function": "common", "per": 8000, "minPop": 400, "max": 12, "site": "gate", "area": [800, 10000] },
+      { "role": "worship.masjid", "function": "collective", "per": 1500, "minPop": 150, "max": 80, "site": "spread", "area": [150, 600] },
+      { "role": "civic.hammam", "function": "collective", "per": 3000, "minPop": 800, "max": 40, "site": "spread", "area": [200, 900] },
+      { "role": "commerce.funduq", "function": "collective", "per": 1500, "minPop": 400, "max": 40, "site": "gate", "area": [200, 700] },
+      { "role": "commerce.tavern", "function": "collective", "per": 1200, "minPop": 500, "max": 40, "site": "spread", "area": [60, 200], "district": "market" },
+      { "role": "commerce.stable", "function": "workshop", "per": 2000, "minPop": 600, "max": 20, "site": "gate", "area": [150, 500] },
+      { "role": "funerary.mausoleum", "function": "collective", "per": 5000, "minPop": 1000, "max": 12, "site": "gate", "area": [60, 300] },
+      { "role": "civic.library", "function": "collective", "per": 0, "minPop": 15000, "max": 1, "site": "nucleus", "area": [400, 1800], "landmark": true, "district": "religious" },
+      { "role": "civic.observatory", "function": "collective", "per": 0, "minPop": 30000, "max": 1, "site": "hill", "area": [600, 2500], "landmark": true },
+      { "role": "civic.prison", "function": "collective", "per": 0, "minPop": 10000, "max": 1, "site": "gate", "area": [300, 1200], "district": "garrison" },
+      { "role": "civic.customs", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "gate", "area": [150, 600] },
+      { "role": "craft.smithy", "function": "workshop", "per": 1200, "minPop": 200, "max": 40, "site": "gate", "area": [80, 300], "district": "craft:smiths" },
+      { "role": "craft.tannery", "function": "workshop", "per": 6000, "minPop": 2000, "max": 10, "site": "downstream", "area": [400, 1500], "district": "craft:tanners" },
+      { "role": "craft.dyer", "function": "workshop", "per": 8000, "minPop": 4000, "max": 8, "site": "downstream", "area": [300, 900], "district": "craft:tanners" },
+      { "role": "craft.mill", "function": "workshop", "per": 3000, "minPop": 300, "max": 10, "site": "river", "area": [150, 500], "requires": "water" },
+      { "role": "craft.kiln", "function": "workshop", "per": 5000, "minPop": 800, "max": 10, "site": "edge", "area": [100, 400], "district": "craft:potters" },
+      { "role": "craft.bakery", "function": "workshop", "per": 1500, "minPop": 400, "max": 60, "site": "spread", "area": [60, 200] },
+      { "role": "storage.granary", "function": "warehouse", "per": 3000, "minPop": 300, "max": 12, "site": "hill", "area": [300, 1500] }
+    ],
+    "chinese": [
+      { "role": "commerce.warehouse", "function": "warehouse", "per": 2000, "minPop": 800, "max": 30, "site": "quay", "area": [300, 1200], "requires": "water", "district": "port" },
+      { "role": "commerce.fishmarket", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "quay", "area": [300, 1400], "requires": "water", "district": "port" },
+      { "role": "civic.yamen", "function": "collective", "per": 0, "minPop": 2000, "max": 1, "site": "nucleus", "area": [2000, 9000], "landmark": true, "district": "civic" },
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [300, 16000], "perCapita": 0.3, "landmark": true, "district": "market" },
+      { "role": "worship.confucian-temple", "function": "collective", "per": 0, "minPop": 5000, "max": 1, "site": "spread", "area": [2000, 7000], "landmark": true, "district": "religious" },
+      { "role": "worship.city-god-temple", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "nucleus", "area": [1000, 4000], "landmark": true },
+      { "role": "elite.palace", "function": "collective", "per": 0, "minPop": 50000, "max": 1, "site": "nucleus", "area": [8000, 40000], "landmark": true, "district": "elite" },
+      { "role": "defence.barracks", "function": "collective", "per": 40000, "minPop": 20000, "max": 6, "site": "gate", "area": [2000, 8000], "district": "garrison" },
+      { "role": "commerce.market.ward", "function": "market", "per": 15000, "minPop": 10000, "max": 8, "site": "gate", "area": [800, 3000] },
+      { "role": "open.cemetery", "function": "common", "per": 10000, "minPop": 3000, "max": 8, "site": "edge", "area": [1500, 8000] },
+      { "role": "worship.temple", "function": "collective", "per": 3000, "minPop": 200, "max": 40, "site": "spread", "area": [300, 1500] },
+      { "role": "worship.pagoda", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "edge", "area": [200, 900], "landmark": true, "district": "religious" },
+      { "role": "civic.drum-tower", "function": "collective", "per": 0, "minPop": 2000, "max": 1, "site": "nucleus", "area": [300, 1200], "landmark": true, "district": "civic" },
+      { "role": "civic.academy", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "spread", "area": [1000, 4000], "landmark": true },
+      { "role": "civic.observatory", "function": "collective", "per": 0, "minPop": 40000, "max": 1, "site": "hill", "area": [400, 1500], "landmark": true },
+      { "role": "civic.arch", "function": "collective", "per": 3000, "minPop": 2000, "max": 12, "site": "spread", "area": [30, 120] },
+      { "role": "commerce.inn", "function": "collective", "per": 1200, "minPop": 400, "max": 40, "site": "gate", "area": [200, 700] },
+      { "role": "commerce.tavern", "function": "collective", "per": 800, "minPop": 300, "max": 60, "site": "spread", "area": [80, 300], "district": "market" },
+      { "role": "commerce.stable", "function": "workshop", "per": 3000, "minPop": 800, "max": 20, "site": "gate", "area": [150, 500] },
+      { "role": "commerce.warehouse.market", "function": "warehouse", "per": 5000, "minPop": 3000, "max": 12, "site": "nucleus", "area": [300, 1200], "district": "market" },
+      { "role": "craft.smithy", "function": "workshop", "per": 1500, "minPop": 300, "max": 30, "site": "gate", "area": [80, 300], "district": "craft:smiths" },
+      { "role": "craft.tannery", "function": "workshop", "per": 6000, "minPop": 2000, "max": 10, "site": "downstream", "area": [300, 1200], "district": "craft:tanners" },
+      { "role": "craft.mill", "function": "workshop", "per": 3000, "minPop": 300, "max": 10, "site": "river", "area": [150, 500], "requires": "water" },
+      { "role": "craft.sawmill", "function": "workshop", "per": 8000, "minPop": 1500, "max": 4, "site": "river", "area": [200, 700], "requires": "water" },
+      { "role": "craft.kiln", "function": "workshop", "per": 4000, "minPop": 600, "max": 12, "site": "edge", "area": [150, 600], "district": "craft:potters" },
+      { "role": "storage.granary", "function": "warehouse", "per": 3000, "minPop": 800, "max": 12, "site": "spread", "area": [400, 2000] }
+    ],
+    "japanese": [
+      { "role": "commerce.warehouse", "function": "warehouse", "per": 2000, "minPop": 800, "max": 30, "site": "quay", "area": [300, 1200], "requires": "water", "district": "port" },
+      { "role": "commerce.fishmarket", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "quay", "area": [300, 1400], "requires": "water", "district": "port" },
+      { "role": "craft.mill", "function": "workshop", "per": 3000, "minPop": 300, "max": 10, "site": "river", "area": [120, 400], "requires": "water" },
+      { "role": "craft.dyer", "function": "workshop", "per": 6000, "minPop": 3000, "max": 6, "site": "downstream", "area": [200, 700], "district": "craft:dyers" },
+      { "role": "defence.castle", "function": "collective", "per": 0, "minPop": 1000, "max": 1, "site": "hill", "area": [6000, 60000], "landmark": true, "district": "garrison" },
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [300, 10000], "perCapita": 0.25, "district": "market" },
+      { "role": "worship.temple", "function": "collective", "per": 2500, "minPop": 300, "max": 40, "site": "edge", "area": [600, 3000], "district": "religious" },
+      { "role": "worship.shrine", "function": "collective", "per": 1500, "minPop": 100, "max": 60, "site": "spread", "area": [150, 800] },
+      { "role": "commerce.inn", "function": "collective", "per": 1000, "minPop": 300, "max": 40, "site": "gate", "area": [200, 700] },
+      { "role": "commerce.tavern", "function": "collective", "per": 700, "minPop": 200, "max": 60, "site": "spread", "area": [60, 200], "district": "market" },
+      { "role": "commerce.stable", "function": "workshop", "per": 4000, "minPop": 1000, "max": 10, "site": "gate", "area": [120, 400] },
+      { "role": "worship.pagoda", "function": "collective", "per": 8000, "minPop": 2000, "max": 4, "site": "edge", "area": [100, 400], "landmark": true, "district": "religious" },
+      { "role": "elite.manor", "function": "collective", "per": 3000, "minPop": 1500, "max": 12, "site": "hill", "area": [400, 1400], "district": "garrison" },
+      { "role": "civic.bathhouse", "function": "collective", "per": 3000, "minPop": 1000, "max": 20, "site": "spread", "area": [100, 400] },
+      { "role": "civic.theatre", "function": "collective", "per": 0, "minPop": 10000, "max": 1, "site": "edge", "area": [600, 2000], "landmark": true },
+      { "role": "craft.smithy", "function": "workshop", "per": 1500, "minPop": 300, "max": 30, "site": "gate", "area": [80, 300], "district": "craft:smiths" },
+      { "role": "craft.brewery", "function": "workshop", "per": 5000, "minPop": 1500, "max": 10, "site": "waterfront", "area": [300, 1200] },
+      { "role": "craft.sawmill", "function": "workshop", "per": 6000, "minPop": 1000, "max": 6, "site": "river", "area": [150, 600], "requires": "water" },
+      { "role": "craft.kiln", "function": "workshop", "per": 5000, "minPop": 800, "max": 8, "site": "edge", "area": [100, 400], "district": "craft:potters" },
+      { "role": "storage.granary", "function": "warehouse", "per": 3000, "minPop": 500, "max": 15, "site": "spread", "area": [150, 800] },
+      { "role": "open.cemetery", "function": "common", "per": 6000, "minPop": 2000, "max": 10, "site": "edge", "area": [600, 4000] }
+    ],
+    "indian": [
+      { "role": "commerce.warehouse", "function": "warehouse", "per": 2500, "minPop": 1000, "max": 30, "site": "quay", "area": [300, 1200], "requires": "water", "district": "port" },
+      { "role": "civic.ghat", "function": "common", "per": 0, "minPop": 800, "max": 1, "site": "river", "area": [300, 2500], "requires": "water" },
+      { "role": "worship.temple.major", "function": "collective", "per": 0, "minPop": 1000, "max": 1, "site": "nucleus", "area": [4000, 40000], "landmark": true, "district": "religious" },
+      { "role": "commerce.bazaar", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [300, 15000], "perCapita": 0.35, "district": "market" },
+      { "role": "elite.palace", "function": "collective", "per": 0, "minPop": 15000, "max": 1, "site": "hill", "area": [5000, 30000], "landmark": true, "district": "elite" },
+      { "role": "defence.fort", "function": "collective", "per": 0, "minPop": 5000, "max": 1, "site": "hill", "area": [5000, 30000], "landmark": true, "district": "garrison" },
+      { "role": "civic.tank", "function": "common", "per": 0, "minPop": 2000, "max": 1, "site": "spread", "area": [1500, 9000] },
+      { "role": "worship.shrine", "function": "collective", "per": 800, "minPop": 100, "max": 80, "site": "spread", "area": [60, 400] },
+      { "role": "commerce.dharamshala", "function": "collective", "per": 1500, "minPop": 500, "max": 30, "site": "gate", "area": [250, 900] },
+      { "role": "civic.stepwell", "function": "collective", "per": 3000, "minPop": 600, "max": 20, "site": "spread", "area": [150, 600] },
+      { "role": "commerce.stable", "function": "workshop", "per": 4000, "minPop": 1500, "max": 12, "site": "gate", "area": [200, 700] },
+      { "role": "civic.observatory", "function": "collective", "per": 0, "minPop": 25000, "max": 1, "site": "nucleus", "area": [800, 4000], "landmark": true },
+      { "role": "craft.kiln", "function": "workshop", "per": 3000, "minPop": 500, "max": 15, "site": "edge", "area": [80, 300], "district": "craft:potters" },
+      { "role": "craft.smithy", "function": "workshop", "per": 1500, "minPop": 300, "max": 30, "site": "gate", "area": [80, 300], "district": "craft:smiths" },
+      { "role": "craft.tannery", "function": "workshop", "per": 6000, "minPop": 2000, "max": 10, "site": "downstream", "area": [300, 1200], "district": "craft:tanners" },
+      { "role": "craft.dyer", "function": "workshop", "per": 5000, "minPop": 2000, "max": 10, "site": "downstream", "area": [300, 900], "district": "craft:tanners" },
+      { "role": "storage.granary", "function": "warehouse", "per": 4000, "minPop": 800, "max": 10, "site": "spread", "area": [300, 1500] }
+    ],
+    "mesoamerican": [
+      { "role": "worship.pyramid-precinct", "function": "collective", "per": 0, "minPop": 500, "max": 1, "site": "nucleus", "area": [3000, 60000], "landmark": true, "district": "religious" },
+      { "role": "commerce.tianguis", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [400, 25000], "perCapita": 0.4, "landmark": true, "district": "market" },
+      { "role": "elite.palace", "function": "collective", "per": 0, "minPop": 4000, "max": 1, "site": "nucleus", "area": [2000, 15000], "landmark": true, "district": "elite" },
+      { "role": "civic.ballcourt", "function": "collective", "per": 10000, "minPop": 1500, "max": 6, "site": "nucleus", "area": [600, 3000], "landmark": true },
+      { "role": "civic.calmecac", "function": "collective", "per": 15000, "minPop": 5000, "max": 6, "site": "spread", "area": [600, 2500] },
+      { "role": "worship.temple", "function": "collective", "per": 2500, "minPop": 300, "max": 40, "site": "spread", "area": [200, 1200] },
+      { "role": "craft.obsidian", "function": "workshop", "per": 3000, "minPop": 1000, "max": 20, "site": "edge", "area": [80, 300], "district": "craft:knappers" },
+      { "role": "craft.kiln", "function": "workshop", "per": 3000, "minPop": 600, "max": 15, "site": "edge", "area": [80, 300], "district": "craft:potters" },
+      { "role": "storage.granary", "function": "warehouse", "per": 2500, "minPop": 500, "max": 15, "site": "spread", "area": [200, 1000] }
+    ],
+    "andean": [
+      { "role": "worship.ushnu", "function": "collective", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [800, 6000], "landmark": true, "district": "religious" },
+      { "role": "civic.kallanka", "function": "collective", "per": 6000, "minPop": 1500, "max": 6, "site": "nucleus", "area": [400, 1800], "landmark": true, "district": "civic" },
+      { "role": "elite.kancha-palace", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "nucleus", "area": [3000, 15000], "landmark": true, "district": "elite" },
+      { "role": "defence.fortress", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "hill", "area": [5000, 30000], "landmark": true, "district": "garrison" },
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 1500, "max": 1, "site": "nucleus", "area": [400, 8000], "perCapita": 0.2, "district": "market" },
+      { "role": "worship.huaca", "function": "collective", "per": 3000, "minPop": 200, "max": 30, "site": "hill", "area": [100, 600] },
+      { "role": "storage.qollqa", "function": "warehouse", "per": 1500, "minPop": 300, "max": 30, "site": "hill", "area": [150, 800] },
+      { "role": "craft.weaver", "function": "workshop", "per": 8000, "minPop": 3000, "max": 6, "site": "nucleus", "area": [600, 2500], "district": "craft:weavers" },
+      { "role": "commerce.inn", "function": "collective", "per": 3000, "minPop": 500, "max": 12, "site": "gate", "area": [200, 800] },
+      { "role": "worship.temple.major", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "nucleus", "area": [1500, 8000], "landmark": true, "district": "religious" },
+      { "role": "craft.smithy", "function": "workshop", "per": 5000, "minPop": 1000, "max": 10, "site": "edge", "area": [80, 300] }
+    ],
+    "norse": [
+      { "role": "commerce.warehouse", "function": "warehouse", "per": 1000, "minPop": 400, "max": 20, "site": "quay", "area": [150, 600], "requires": "water", "district": "port" },
+      { "role": "craft.tannery", "function": "workshop", "per": 3000, "minPop": 800, "max": 6, "site": "downstream", "area": [150, 600], "district": "craft:tanners" },
+      { "role": "civic.longhall", "function": "collective", "per": 0, "minPop": 50, "max": 1, "site": "nucleus", "area": [200, 1200], "landmark": true, "district": "elite" },
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 500, "max": 1, "site": "waterfront", "area": [300, 6000], "perCapita": 0.3, "district": "market" },
+      { "role": "open.thing", "function": "common", "per": 0, "minPop": 300, "max": 1, "site": "edge", "area": [600, 3000] },
+      { "role": "open.cemetery", "function": "common", "per": 3000, "minPop": 150, "max": 8, "site": "edge", "area": [400, 4000] },
+      { "role": "worship.hof", "function": "collective", "per": 3000, "minPop": 300, "max": 10, "site": "hill", "area": [100, 500], "landmark": true },
+      { "role": "commerce.tavern", "function": "collective", "per": 800, "minPop": 200, "max": 20, "site": "spread", "area": [100, 400] },
+      { "role": "commerce.stable", "function": "workshop", "per": 600, "minPop": 150, "max": 20, "site": "edge", "area": [80, 300] },
+      { "role": "defence.tower", "function": "collective", "per": 0, "minPop": 400, "max": 1, "site": "hill", "area": [60, 200] },
+      { "role": "craft.smithy", "function": "workshop", "per": 600, "minPop": 80, "max": 30, "site": "edge", "area": [60, 250], "district": "craft:smiths" },
+      { "role": "craft.boatshed", "function": "workshop", "per": 1500, "minPop": 200, "max": 20, "site": "waterfront", "area": [150, 600], "requires": "water" },
+      { "role": "storage.granary", "function": "warehouse", "per": 1000, "minPop": 100, "max": 20, "site": "spread", "area": [60, 300] }
+    ],
+    "steppe": [
+      { "role": "civic.khan-tent", "function": "collective", "per": 0, "minPop": 50, "max": 1, "site": "nucleus", "area": [300, 1500], "landmark": true, "district": "elite" },
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 500, "max": 1, "site": "nucleus", "area": [400, 8000], "perCapita": 0.4, "district": "market" },
+      { "role": "open.corral", "function": "common", "per": 300, "minPop": 30, "max": 20, "site": "edge", "area": [300, 3000] },
+      { "role": "worship.shrine", "function": "collective", "per": 3000, "minPop": 300, "max": 10, "site": "hill", "area": [80, 400] },
+      { "role": "commerce.stable", "function": "workshop", "per": 2000, "minPop": 300, "max": 10, "site": "gate", "area": [100, 400] },
+      { "role": "craft.smithy", "function": "workshop", "per": 1000, "minPop": 100, "max": 20, "site": "edge", "area": [40, 200] }
+    ],
+    "african": [
+      { "role": "craft.tannery", "function": "workshop", "per": 5000, "minPop": 2000, "max": 8, "site": "downstream", "area": [200, 900], "district": "craft:tanners" },
+      { "role": "civic.palace", "function": "collective", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [800, 8000], "landmark": true, "district": "elite" },
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [400, 15000], "perCapita": 0.45, "district": "market" },
+      { "role": "open.kraal", "function": "common", "per": 400, "minPop": 30, "max": 12, "site": "nucleus", "area": [300, 3000] },
+      { "role": "worship.shrine", "function": "collective", "per": 1500, "minPop": 100, "max": 40, "site": "spread", "area": [60, 400] },
+      { "role": "craft.smithy", "function": "workshop", "per": 1500, "minPop": 200, "max": 30, "site": "edge", "area": [60, 250], "district": "craft:smiths" },
+      { "role": "craft.dyer", "function": "workshop", "per": 4000, "minPop": 1500, "max": 10, "site": "downstream", "area": [200, 900], "district": "craft:dyers" },
+      { "role": "craft.kiln", "function": "workshop", "per": 3000, "minPop": 500, "max": 10, "site": "edge", "area": [60, 250], "district": "craft:potters" },
+      { "role": "commerce.tavern", "function": "collective", "per": 1500, "minPop": 500, "max": 20, "site": "spread", "area": [60, 200] },
+      { "role": "storage.granary", "function": "warehouse", "per": 800, "minPop": 50, "max": 40, "site": "spread", "area": [30, 200] }
+    ],
+    "native": [
+      { "role": "civic.council-house", "function": "collective", "per": 0, "minPop": 80, "max": 1, "site": "nucleus", "area": [200, 1500], "landmark": true, "district": "civic" },
+      { "role": "open.plaza", "function": "common", "per": 0, "minPop": 150, "max": 1, "site": "nucleus", "area": [400, 8000] },
+      { "role": "worship.kiva", "function": "collective", "per": 1500, "minPop": 150, "max": 20, "site": "spread", "area": [60, 400] },
+      { "role": "storage.granary", "function": "warehouse", "per": 600, "minPop": 50, "max": 30, "site": "spread", "area": [30, 200] },
+      { "role": "craft.workshop", "function": "workshop", "per": 2000, "minPop": 300, "max": 10, "site": "edge", "area": [60, 250] }
+    ],
+    "clan": [
+      { "role": "civic.council-house", "function": "collective", "per": 0, "minPop": 40, "max": 1, "site": "nucleus", "area": [150, 1200], "landmark": true, "district": "civic" },
+      { "role": "open.plaza", "function": "common", "per": 0, "minPop": 120, "max": 1, "site": "nucleus", "area": [300, 4000] },
+      { "role": "storage.granary", "function": "warehouse", "per": 300, "minPop": 30, "max": 30, "site": "spread", "area": [20, 120] },
+      { "role": "craft.boatshed", "function": "workshop", "per": 400, "minPop": 60, "max": 12, "site": "waterfront", "area": [60, 300], "requires": "water" },
+      { "role": "craft.workshop", "function": "workshop", "per": 1500, "minPop": 200, "max": 8, "site": "edge", "area": [60, 250] },
+      { "role": "worship.shrine", "function": "collective", "per": 2000, "minPop": 150, "max": 6, "site": "hill", "area": [40, 300] }
+    ],
+    "classical": [
+      { "role": "commerce.emporium", "function": "market", "per": 0, "minPop": 3000, "max": 1, "site": "quay", "area": [600, 4000], "requires": "water", "district": "port" },
+      { "role": "civic.forum", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [600, 12000], "perCapita": 0.4, "landmark": true, "district": "civic" },
+      { "role": "civic.basilica", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "nucleus", "area": [800, 4000], "landmark": true, "district": "civic" },
+      { "role": "worship.capitolium", "function": "collective", "per": 0, "minPop": 5000, "max": 1, "site": "nucleus", "area": [1000, 5000], "landmark": true, "district": "religious" },
+      { "role": "civic.thermae", "function": "collective", "per": 10000, "minPop": 2000, "max": 8, "site": "spread", "area": [800, 8000], "landmark": true },
+      { "role": "civic.theatre", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "hill", "area": [3000, 9000], "landmark": true },
+      { "role": "civic.amphitheatre", "function": "collective", "per": 0, "minPop": 20000, "max": 1, "site": "edge", "area": [8000, 20000], "landmark": true },
+      { "role": "commerce.macellum", "function": "market", "per": 20000, "minPop": 5000, "max": 6, "site": "spread", "area": [600, 2500] },
+      { "role": "storage.horreum", "function": "warehouse", "per": 5000, "minPop": 2000, "max": 12, "site": "quay", "area": [600, 3000], "district": "port" },
+      { "role": "open.necropolis", "function": "common", "per": 8000, "minPop": 500, "max": 10, "site": "gate", "area": [800, 8000] },
+      { "role": "worship.temple", "function": "collective", "per": 3000, "minPop": 300, "max": 30, "site": "spread", "area": [200, 1200] },
+      { "role": "commerce.taberna", "function": "collective", "per": 800, "minPop": 200, "max": 60, "site": "gate", "area": [150, 500] },
+      { "role": "commerce.stable", "function": "workshop", "per": 3000, "minPop": 1000, "max": 12, "site": "gate", "area": [150, 500] },
+      { "role": "civic.hippodrome", "function": "collective", "per": 0, "minPop": 30000, "max": 1, "site": "edge", "area": [15000, 40000], "landmark": true },
+      { "role": "civic.library", "function": "collective", "per": 0, "minPop": 15000, "max": 1, "site": "nucleus", "area": [400, 1500], "landmark": true, "district": "civic" },
+      { "role": "civic.arch", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "nucleus", "area": [60, 250], "district": "civic" },
+      { "role": "civic.prison", "function": "collective", "per": 0, "minPop": 10000, "max": 1, "site": "nucleus", "area": [150, 600], "district": "civic" },
+      { "role": "elite.villa", "function": "collective", "per": 4000, "minPop": 2000, "max": 10, "site": "edge", "area": [600, 1400], "district": "elite" },
+      { "role": "craft.fullonica", "function": "workshop", "per": 5000, "minPop": 3000, "max": 10, "site": "downstream", "area": [200, 800], "district": "craft:fullers" },
+      { "role": "craft.smithy", "function": "workshop", "per": 1500, "minPop": 300, "max": 30, "site": "gate", "area": [80, 300] },
+      { "role": "craft.mill", "function": "workshop", "per": 3000, "minPop": 300, "max": 10, "site": "river", "area": [150, 500], "requires": "water" },
+      { "role": "craft.kiln", "function": "workshop", "per": 4000, "minPop": 800, "max": 12, "site": "edge", "area": [100, 400], "district": "craft:potters" },
+      { "role": "craft.bakery", "function": "workshop", "per": 1500, "minPop": 400, "max": 60, "site": "spread", "area": [80, 250] }
+    ],
+    "ancient": [
+      { "role": "worship.temple.major", "function": "collective", "per": 0, "minPop": 500, "max": 1, "site": "nucleus", "area": [2000, 30000], "landmark": true, "district": "religious" },
+      { "role": "elite.palace", "function": "collective", "per": 0, "minPop": 5000, "max": 1, "site": "hill", "area": [3000, 20000], "landmark": true, "district": "elite" },
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 800, "max": 1, "site": "nucleus", "area": [300, 8000], "perCapita": 0.25, "district": "market" },
+      { "role": "open.cemetery", "function": "common", "per": 6000, "minPop": 500, "max": 8, "site": "edge", "area": [800, 8000] },
+      { "role": "worship.shrine", "function": "collective", "per": 2000, "minPop": 200, "max": 40, "site": "spread", "area": [80, 500] },
+      { "role": "storage.granary", "function": "warehouse", "per": 2000, "minPop": 300, "max": 20, "site": "spread", "area": [200, 1500] },
+      { "role": "craft.potter", "function": "workshop", "per": 3000, "minPop": 800, "max": 15, "site": "edge", "area": [100, 500], "district": "craft:potters" },
+      { "role": "craft.kiln", "function": "workshop", "per": 5000, "minPop": 1500, "max": 8, "site": "edge", "area": [80, 300], "district": "craft:potters" },
+      { "role": "commerce.tavern", "function": "collective", "per": 1200, "minPop": 400, "max": 30, "site": "spread", "area": [60, 200], "district": "market" },
+      { "role": "craft.smithy", "function": "workshop", "per": 2000, "minPop": 500, "max": 15, "site": "gate", "area": [80, 300] }
+    ],
+    "necropolis": [
+      { "role": "worship.mortuary-temple", "function": "collective", "per": 0, "minPop": 150, "max": 1, "site": "nucleus", "area": [400, 4000], "landmark": true, "district": "religious" },
+      { "role": "open.necropolis", "function": "common", "per": 250, "minPop": 100, "max": 60, "site": "spread", "area": [400, 5000], "perCapita": 6, "district": "religious" },
+      { "role": "funerary.mausoleum", "function": "collective", "per": 400, "minPop": 100, "max": 40, "site": "spread", "area": [120, 450], "district": "religious" },
+      { "role": "funerary.mausoleum.ruin", "function": "collective", "per": 450, "minPop": 150, "max": 40, "site": "spread", "area": [150, 600] },
+      { "role": "worship.mortuary-temple.ruin", "function": "collective", "per": 2500, "minPop": 400, "max": 12, "site": "hill", "area": [450, 1800], "landmark": true },
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "gate", "area": [200, 1200] },
+      { "role": "craft.smithy", "function": "workshop", "per": 2500, "minPop": 250, "max": 12, "site": "gate", "area": [80, 300] },
+      { "role": "storage.granary", "function": "warehouse", "per": 4000, "minPop": 1000, "max": 10, "site": "spread", "area": [300, 1500] }
+    ],
+    "fantasy": [
+      { "role": "commerce.warehouse", "function": "warehouse", "per": 2000, "minPop": 800, "max": 30, "site": "quay", "area": [300, 1200], "requires": "water", "district": "port" },
+      { "role": "craft.mill", "function": "workshop", "per": 3000, "minPop": 300, "max": 10, "site": "river", "area": [150, 500], "requires": "water" },
+      { "role": "craft.tannery", "function": "workshop", "per": 6000, "minPop": 2000, "max": 10, "site": "downstream", "area": [300, 1200], "district": "craft:tanners" },
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [300, 15000], "perCapita": 0.35, "district": "market" },
+      { "role": "defence.keep", "function": "collective", "per": 0, "minPop": 1000, "max": 1, "site": "hill", "area": [1500, 15000], "landmark": true, "district": "garrison" },
+      { "role": "elite.palace", "function": "collective", "per": 0, "minPop": 20000, "max": 1, "site": "hill", "area": [4000, 20000], "landmark": true, "district": "elite" },
+      { "role": "civic.academy", "function": "collective", "per": 0, "minPop": 5000, "max": 1, "site": "spread", "area": [2000, 8000], "landmark": true },
+      { "role": "civic.guildhall", "function": "collective", "per": 10000, "minPop": 3000, "max": 8, "site": "nucleus", "area": [300, 1500], "district": "market" },
+      { "role": "open.cemetery", "function": "common", "per": 8000, "minPop": 3000, "max": 10, "site": "edge", "area": [800, 6000] },
+      { "role": "worship.temple", "function": "collective", "per": 3000, "minPop": 200, "max": 40, "site": "spread", "area": [200, 1200] },
+      { "role": "commerce.inn", "function": "collective", "per": 800, "minPop": 150, "max": 50, "site": "gate", "area": [180, 600] },
+      { "role": "commerce.tavern", "function": "collective", "per": 500, "minPop": 80, "max": 80, "site": "spread", "area": [80, 300], "district": "market" },
+      { "role": "commerce.stable", "function": "workshop", "per": 1000, "minPop": 200, "max": 30, "site": "gate", "area": [120, 450] },
+      { "role": "elite.manor", "function": "collective", "per": 0, "minPop": 150, "maxPop": 3000, "max": 1, "site": "edge", "area": [300, 1400], "district": "elite" },
+      { "role": "civic.arena", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "edge", "area": [4000, 15000], "landmark": true },
+      { "role": "civic.library", "function": "collective", "per": 0, "minPop": 10000, "max": 1, "site": "spread", "area": [600, 2500], "landmark": true },
+      { "role": "civic.prison", "function": "collective", "per": 0, "minPop": 5000, "max": 1, "site": "gate", "area": [300, 1400], "district": "garrison" },
+      { "role": "defence.arsenal", "function": "collective", "per": 0, "minPop": 20000, "max": 1, "site": "gate", "area": [1500, 6000], "district": "garrison" },
+      { "role": "craft.smithy", "function": "workshop", "per": 1000, "minPop": 150, "max": 40, "site": "gate", "area": [80, 300], "district": "craft:smiths" },
+      { "role": "craft.alchemist", "function": "workshop", "per": 5000, "minPop": 1500, "max": 10, "site": "edge", "area": [80, 300] },
+      { "role": "craft.sawmill", "function": "workshop", "per": 6000, "minPop": 800, "max": 6, "site": "river", "area": [200, 700], "requires": "water" },
+      { "role": "craft.kiln", "function": "workshop", "per": 4000, "minPop": 600, "max": 10, "site": "edge", "area": [100, 400], "district": "craft:potters" },
+      { "role": "storage.granary", "function": "warehouse", "per": 3000, "minPop": 600, "max": 12, "site": "spread", "area": [300, 1500] }
+    ],
+    "insular": [
+      {"role": "elite.palace", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "nucleus", "area": [4000, 40000], "landmark": true, "district": "elite"},
+      {"role": "commerce.market", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [200, 20000], "perCapita": 0.35, "landmark": true, "district": "market"},
+      {"role": "worship.temple.major", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "nucleus", "area": [2500, 25000], "landmark": true, "district": "religious"},
+      {"role": "worship.shrine", "function": "collective", "per": 2500, "minPop": 200, "max": 40, "site": "spread", "area": [150, 800]},
+      {"role": "civic.hall", "function": "collective", "per": 0, "minPop": 800, "max": 1, "site": "nucleus", "area": [300, 1500]},
+      {"role": "commerce.inn", "function": "collective", "per": 3000, "minPop": 1000, "max": 20, "site": "gate", "area": [180, 600]},
+      {"role": "commerce.tavern", "function": "collective", "per": 800, "minPop": 300, "max": 40, "site": "spread", "area": [40, 150], "district": "market"},
+      {"role": "worship.stupa", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "hill", "area": [1500, 9000], "landmark": true, "district": "religious"},
+      {"role": "civic.bathhouse", "function": "collective", "per": 0, "minPop": 5000, "max": 1, "site": "waterfront", "area": [300, 1500]},
+      {"role": "storage.granary", "function": "warehouse", "per": 2500, "minPop": 400, "max": 30, "site": "spread", "area": [150, 800]},
+      {"role": "commerce.warehouse", "function": "warehouse", "per": 2500, "minPop": 1000, "max": 30, "site": "quay", "area": [300, 1200], "requires": "water", "district": "port"},
+      {"role": "craft.smithy", "function": "workshop", "per": 2000, "minPop": 400, "max": 25, "site": "gate", "area": [80, 300], "district": "craft:smiths"},
+      {"role": "craft.dyer", "function": "workshop", "per": 5000, "minPop": 3000, "max": 10, "site": "downstream", "area": [300, 900], "district": "craft:dyers"}
+    ],
+    "industrial": [
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [600, 14000], "perCapita": 0.2, "landmark": true, "district": "market" },
+      { "role": "civic.townhall", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "nucleus", "area": [900, 5000], "landmark": true, "district": "civic" },
+      { "role": "civic.courthouse", "function": "collective", "per": 0, "minPop": 4000, "max": 1, "site": "nucleus", "area": [800, 3500], "landmark": true, "district": "civic" },
+      { "role": "civic.station", "function": "collective", "per": 0, "minPop": 2500, "max": 1, "site": "gate", "area": [2500, 12000], "landmark": true },
+      { "role": "civic.library", "function": "collective", "per": 0, "minPop": 6000, "max": 1, "site": "spread", "area": [500, 2200], "landmark": true, "district": "civic" },
+      { "role": "civic.theatre", "function": "collective", "per": 15000, "minPop": 5000, "max": 6, "site": "nucleus", "area": [700, 2400], "district": "market" },
+      { "role": "civic.school", "function": "collective", "per": 2500, "minPop": 600, "max": 40, "site": "spread", "area": [500, 1800] },
+      { "role": "civic.fire-station", "function": "collective", "per": 6000, "minPop": 2000, "max": 16, "site": "spread", "area": [150, 500] },
+      { "role": "civic.power-house", "function": "workshop", "per": 40000, "minPop": 8000, "max": 3, "site": "downstream", "area": [900, 3500], "district": "craft" },
+      { "role": "civic.water-tower", "function": "collective", "per": 12000, "minPop": 1500, "max": 8, "site": "hill", "area": [100, 300] },
+      { "role": "commerce.skyscraper", "function": "collective", "per": 30000, "minPop": 50000, "max": 6, "site": "nucleus", "area": [900, 3000], "landmark": true, "district": "market" },
+      { "role": "commerce.office-block", "function": "collective", "per": 2500, "minPop": 30000, "max": 40, "site": "nucleus", "area": [500, 2000], "district": "market" },
+      { "role": "commerce.department-store", "function": "collective", "per": 20000, "minPop": 8000, "max": 4, "site": "nucleus", "area": [1200, 4500], "district": "market" },
+      { "role": "commerce.bank", "function": "collective", "per": 8000, "minPop": 2500, "max": 10, "site": "nucleus", "area": [300, 1100], "district": "market" },
+      { "role": "commerce.hotel", "function": "collective", "per": 10000, "minPop": 3000, "max": 8, "site": "gate", "area": [500, 2000] },
+      { "role": "commerce.market.hall", "function": "collective", "per": 25000, "minPop": 5000, "max": 4, "site": "spread", "area": [900, 3500], "district": "market" },
+      { "role": "commerce.tavern", "function": "collective", "per": 600, "minPop": 150, "max": 120, "site": "spread", "area": [80, 300] },
+      { "role": "commerce.warehouse", "function": "warehouse", "per": 1500, "minPop": 800, "max": 40, "site": "quay", "area": [400, 1800], "requires": "water", "district": "port" },
+      { "role": "craft.factory", "function": "workshop", "per": 3000, "minPop": 1500, "max": 40, "site": "downstream", "area": [1500, 8000], "district": "craft" },
+      { "role": "craft.workshop", "function": "workshop", "per": 600, "minPop": 300, "max": 150, "site": "spread", "area": [100, 400] },
+      { "role": "craft.brewery", "function": "workshop", "per": 8000, "minPop": 2500, "max": 8, "site": "edge", "area": [400, 1500], "district": "craft" },
+      { "role": "storage.elevator", "function": "warehouse", "per": 40000, "minPop": 3000, "max": 3, "site": "waterfront", "area": [700, 2800], "district": "port" },
+      { "role": "worship.cathedral", "function": "collective", "per": 0, "minPop": 15000, "max": 1, "site": "spread", "area": [1800, 6000], "landmark": true, "district": "religious" },
+      { "role": "worship.parish", "function": "collective", "per": 2500, "minPop": 150, "max": 60, "site": "spread", "area": [300, 1200] },
+      { "role": "worship.chapel", "function": "collective", "per": 4000, "minPop": 800, "max": 40, "site": "spread", "area": [200, 700] },
+      { "role": "worship.synagogue", "function": "collective", "per": 20000, "minPop": 8000, "max": 6, "site": "spread", "area": [300, 1000] },
+      { "role": "open.garden", "function": "common", "per": 12000, "minPop": 4000, "max": 8, "site": "spread", "area": [4000, 20000] },
+      { "role": "open.cemetery", "function": "common", "per": 15000, "minPop": 3000, "max": 6, "site": "edge", "area": [3000, 12000] },
+      { "role": "commerce.warehouse.market", "function": "warehouse", "per": 1500, "minPop": 1500, "max": 60, "site": "edge", "area": [400, 1400], "district": "craft" }
+    ],
+    "modernist": [
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [1000, 20000], "perCapita": 0.25, "landmark": true, "district": "market" },
+      { "role": "civic.townhall", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "nucleus", "area": [1200, 6000], "landmark": true, "district": "civic" },
+      { "role": "civic.monument", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "nucleus", "area": [300, 1500], "landmark": true, "district": "civic" },
+      { "role": "housing.slab", "function": "collective", "per": 1200, "minPop": 30000, "townPop": 5000, "max": 80, "site": "spread", "area": [1500, 4000] },
+      { "role": "housing.tower", "function": "collective", "per": 4000, "minPop": 50000, "townPop": 10000, "max": 30, "site": "spread", "area": [800, 2400] },
+      { "role": "civic.school", "function": "collective", "per": 2500, "minPop": 600, "max": 40, "site": "spread", "area": [600, 2000] },
+      { "role": "civic.library", "function": "collective", "per": 0, "minPop": 6000, "max": 1, "site": "nucleus", "area": [600, 2400], "landmark": true, "district": "civic" },
+      { "role": "civic.theatre", "function": "collective", "per": 20000, "minPop": 8000, "max": 4, "site": "nucleus", "area": [800, 2600], "district": "civic" },
+      { "role": "civic.station", "function": "collective", "per": 0, "minPop": 2500, "max": 1, "site": "gate", "area": [2500, 12000], "landmark": true },
+      { "role": "civic.stadium", "function": "collective", "per": 0, "minPop": 15000, "max": 1, "site": "edge", "area": [20000, 40000], "landmark": true },
+      { "role": "civic.power-plant", "function": "workshop", "per": 50000, "minPop": 20000, "max": 2, "site": "edge", "area": [15000, 40000], "district": "craft" },
+      { "role": "civic.tv-tower", "function": "collective", "per": 0, "minPop": 100000, "max": 1, "site": "hill", "area": [400, 1500], "landmark": true },
+      { "role": "civic.fire-station", "function": "collective", "per": 8000, "minPop": 3000, "max": 12, "site": "spread", "area": [200, 600] },
+      { "role": "civic.water-tower", "function": "collective", "per": 15000, "minPop": 1500, "max": 6, "site": "hill", "area": [100, 300] },
+      { "role": "commerce.department-store", "function": "collective", "per": 30000, "minPop": 10000, "max": 3, "site": "nucleus", "area": [1500, 5000], "district": "market" },
+      { "role": "commerce.office-block", "function": "collective", "per": 5000, "minPop": 30000, "max": 20, "site": "nucleus", "area": [600, 2400], "district": "market" },
+      { "role": "commerce.skyscraper", "function": "collective", "per": 0, "minPop": 50000, "max": 1, "site": "nucleus", "area": [1500, 4000], "landmark": true, "district": "civic" },
+      { "role": "commerce.market.hall", "function": "collective", "per": 20000, "minPop": 5000, "max": 4, "site": "spread", "area": [900, 3500], "district": "market" },
+      { "role": "commerce.tavern", "function": "collective", "per": 900, "minPop": 150, "max": 80, "site": "spread", "area": [80, 300] },
+      { "role": "craft.factory", "function": "workshop", "per": 2500, "minPop": 1500, "max": 50, "site": "downstream", "area": [2000, 10000], "district": "craft" },
+      { "role": "craft.workshop", "function": "workshop", "per": 700, "minPop": 300, "max": 120, "site": "spread", "area": [100, 400] },
+      { "role": "open.garden", "function": "common", "per": 8000, "minPop": 2000, "max": 12, "site": "spread", "area": [5000, 30000] },
+      { "role": "open.cemetery", "function": "common", "per": 20000, "minPop": 3000, "max": 4, "site": "edge", "area": [4000, 15000] },
+      { "role": "commerce.warehouse.market", "function": "warehouse", "per": 1500, "minPop": 1500, "max": 60, "site": "edge", "area": [400, 1400], "district": "craft" },
+      { "role": "commerce.bank", "function": "collective", "per": 8000, "minPop": 2500, "max": 10, "site": "nucleus", "area": [300, 1100], "district": "market" },
+      { "role": "civic.courthouse", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "nucleus", "area": [800, 3000], "district": "civic" },
+      { "role": "commerce.hotel", "function": "collective", "per": 12000, "minPop": 4000, "max": 8, "site": "gate", "area": [600, 2400] },
+      { "role": "civic.power-house", "function": "workshop", "per": 30000, "minPop": 5000, "max": 4, "site": "edge", "area": [600, 2500], "district": "craft" }
+    ],
+    "contemporary": [
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [600, 16000], "perCapita": 0.2, "landmark": true, "district": "market" },
+      { "role": "civic.townhall", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "nucleus", "area": [900, 5000], "landmark": true, "district": "civic" },
+      { "role": "commerce.mall", "function": "collective", "per": 40000, "minPop": 8000, "max": 4, "site": "gate", "area": [8000, 30000], "district": "market" },
+      { "role": "commerce.office-block", "function": "collective", "per": 3000, "minPop": 30000, "max": 40, "site": "nucleus", "area": [600, 2400], "district": "market" },
+      { "role": "commerce.skyscraper", "function": "collective", "per": 25000, "minPop": 50000, "townPop": 15000, "max": 10, "site": "nucleus", "area": [1200, 4000], "landmark": true, "district": "market" },
+      { "role": "housing.tower", "function": "collective", "per": 3000, "minPop": 50000, "townPop": 12000, "max": 60, "site": "spread", "area": [800, 2400] },
+      { "role": "commerce.hotel", "function": "collective", "per": 15000, "minPop": 5000, "max": 8, "site": "gate", "area": [600, 2400] },
+      { "role": "civic.school", "function": "collective", "per": 2000, "minPop": 600, "max": 60, "site": "spread", "area": [600, 2000] },
+      { "role": "civic.library", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "nucleus", "area": [800, 3000], "landmark": true, "district": "civic" },
+      { "role": "civic.station", "function": "collective", "per": 0, "minPop": 3000, "max": 1, "site": "gate", "area": [3000, 14000], "landmark": true },
+      { "role": "civic.stadium", "function": "collective", "per": 150000, "minPop": 30000, "max": 2, "site": "edge", "area": [20000, 40000], "landmark": true },
+      { "role": "civic.fire-station", "function": "collective", "per": 10000, "minPop": 3000, "max": 16, "site": "spread", "area": [200, 600] },
+      { "role": "civic.power-plant", "function": "workshop", "per": 80000, "minPop": 40000, "max": 2, "site": "edge", "area": [15000, 40000], "district": "craft" },
+      { "role": "civic.tv-tower", "function": "collective", "per": 0, "minPop": 100000, "max": 1, "site": "hill", "area": [400, 1500], "landmark": true },
+      { "role": "civic.water-tower", "function": "collective", "per": 20000, "minPop": 1500, "max": 6, "site": "hill", "area": [100, 300] },
+      { "role": "craft.factory", "function": "workshop", "per": 4000, "minPop": 3000, "max": 30, "site": "downstream", "area": [2000, 10000], "district": "craft" },
+      { "role": "craft.workshop", "function": "workshop", "per": 600, "minPop": 300, "max": 150, "site": "spread", "area": [100, 400] },
+      { "role": "commerce.tavern", "function": "collective", "per": 700, "minPop": 150, "max": 120, "site": "spread", "area": [80, 300] },
+      { "role": "commerce.warehouse", "function": "warehouse", "per": 2000, "minPop": 1500, "max": 30, "site": "quay", "area": [500, 2400], "requires": "water", "district": "port" },
+      { "role": "open.garden", "function": "common", "per": 10000, "minPop": 3000, "max": 10, "site": "spread", "area": [5000, 30000] },
+      { "role": "open.cemetery", "function": "common", "per": 20000, "minPop": 3000, "max": 6, "site": "edge", "area": [3000, 12000] },
+      { "role": "commerce.warehouse.market", "function": "warehouse", "per": 1500, "minPop": 1500, "max": 60, "site": "edge", "area": [400, 1400], "district": "craft" },
+      { "role": "commerce.bank", "function": "collective", "per": 8000, "minPop": 2500, "max": 10, "site": "nucleus", "area": [300, 1100], "district": "market" },
+      { "role": "commerce.department-store", "function": "collective", "per": 20000, "minPop": 8000, "max": 4, "site": "nucleus", "area": [1500, 5000], "district": "market" },
+      { "role": "commerce.market.hall", "function": "collective", "per": 20000, "minPop": 5000, "max": 4, "site": "nucleus", "area": [900, 3500], "district": "market" },
+      { "role": "civic.courthouse", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "nucleus", "area": [800, 3000], "district": "civic" },
+      { "role": "civic.theatre", "function": "collective", "per": 25000, "minPop": 10000, "max": 3, "site": "nucleus", "area": [800, 2600], "district": "civic" },
+      { "role": "civic.power-house", "function": "workshop", "per": 30000, "minPop": 5000, "max": 4, "site": "edge", "area": [600, 2500], "district": "craft" }
+    ],
+    "informal": [
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 200, "max": 1, "site": "nucleus", "area": [300, 20000], "perCapita": 0.4, "landmark": true, "district": "market" },
+      { "role": "civic.townhall", "function": "collective", "per": 0, "minPop": 5000, "max": 1, "site": "nucleus", "area": [300, 1500], "district": "civic" },
+      { "role": "civic.school", "function": "collective", "per": 4000, "minPop": 1000, "max": 20, "site": "spread", "area": [400, 1500] },
+      { "role": "commerce.tavern", "function": "collective", "per": 600, "minPop": 100, "max": 80, "site": "spread", "area": [40, 200] },
+      { "role": "craft.workshop", "function": "workshop", "per": 600, "minPop": 150, "max": 120, "site": "spread", "area": [60, 300] },
+      { "role": "commerce.warehouse", "function": "warehouse", "per": 3000, "minPop": 2000, "max": 20, "site": "quay", "area": [300, 1500], "requires": "water", "district": "port" },
+      { "role": "open.cemetery", "function": "common", "per": 20000, "minPop": 3000, "max": 4, "site": "edge", "area": [3000, 12000] }
+    ],
+    "futuristic": [
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 300, "max": 1, "site": "nucleus", "area": [800, 16000], "perCapita": 0.2, "landmark": true, "district": "market" },
+      { "role": "civic.townhall", "function": "collective", "per": 0, "minPop": 1500, "max": 1, "site": "nucleus", "area": [900, 5000], "landmark": true, "district": "civic" },
+      { "role": "housing.tower", "function": "collective", "per": 2500, "minPop": 50000, "townPop": 4000, "max": 80, "site": "spread", "area": [800, 2400] },
+      { "role": "commerce.skyscraper", "function": "collective", "per": 15000, "minPop": 50000, "townPop": 8000, "max": 12, "site": "nucleus", "area": [1200, 4000], "landmark": true, "district": "market" },
+      { "role": "commerce.office-block", "function": "collective", "per": 3000, "minPop": 30000, "max": 40, "site": "nucleus", "area": [600, 2400], "district": "market" },
+      { "role": "commerce.mall", "function": "collective", "per": 30000, "minPop": 10000, "max": 4, "site": "gate", "area": [8000, 30000], "district": "market" },
+      { "role": "civic.station", "function": "collective", "per": 0, "minPop": 2500, "max": 1, "site": "gate", "area": [3000, 14000], "landmark": true },
+      { "role": "civic.stadium", "function": "collective", "per": 0, "minPop": 30000, "max": 1, "site": "edge", "area": [20000, 40000], "landmark": true },
+      { "role": "civic.power-plant", "function": "workshop", "per": 60000, "minPop": 15000, "max": 2, "site": "edge", "area": [15000, 40000], "district": "craft" },
+      { "role": "civic.school", "function": "collective", "per": 2000, "minPop": 600, "max": 60, "site": "spread", "area": [600, 2000] },
+      { "role": "civic.fire-station", "function": "collective", "per": 10000, "minPop": 3000, "max": 12, "site": "spread", "area": [200, 600] },
+      { "role": "craft.factory", "function": "workshop", "per": 4000, "minPop": 3000, "max": 30, "site": "downstream", "area": [2000, 10000], "district": "craft" },
+      { "role": "craft.workshop", "function": "workshop", "per": 600, "minPop": 300, "max": 150, "site": "spread", "area": [100, 400] },
+      { "role": "commerce.tavern", "function": "collective", "per": 700, "minPop": 150, "max": 120, "site": "spread", "area": [80, 300] },
+      { "role": "open.garden", "function": "common", "per": 10000, "minPop": 3000, "max": 10, "site": "spread", "area": [5000, 30000] },
+      { "role": "commerce.warehouse.market", "function": "warehouse", "per": 1500, "minPop": 1500, "max": 60, "site": "edge", "area": [400, 1400], "district": "craft" },
+      { "role": "commerce.bank", "function": "collective", "per": 8000, "minPop": 2500, "max": 10, "site": "nucleus", "area": [300, 1100], "district": "market" },
+      { "role": "commerce.department-store", "function": "collective", "per": 20000, "minPop": 8000, "max": 4, "site": "nucleus", "area": [1500, 5000], "district": "market" },
+      { "role": "commerce.market.hall", "function": "collective", "per": 20000, "minPop": 5000, "max": 4, "site": "nucleus", "area": [900, 3500], "district": "market" },
+      { "role": "civic.courthouse", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "nucleus", "area": [800, 3000], "district": "civic" },
+      { "role": "civic.theatre", "function": "collective", "per": 25000, "minPop": 10000, "max": 3, "site": "nucleus", "area": [800, 2600], "district": "civic" },
+      { "role": "civic.power-house", "function": "workshop", "per": 30000, "minPop": 5000, "max": 4, "site": "edge", "area": [600, 2500], "district": "craft" },
+      { "role": "commerce.hotel", "function": "collective", "per": 12000, "minPop": 4000, "max": 8, "site": "gate", "area": [600, 2400] },
+      { "role": "civic.library", "function": "collective", "per": 0, "minPop": 8000, "max": 1, "site": "nucleus", "area": [800, 3000], "landmark": true, "district": "civic" },
+      { "role": "civic.water-tower", "function": "collective", "per": 20000, "minPop": 1500, "max": 6, "site": "hill", "area": [100, 300] }
+    ],
+    "alien": [
+      { "role": "commerce.market", "function": "market", "per": 0, "minPop": 200, "max": 1, "site": "nucleus", "area": [500, 12000], "perCapita": 0.3, "district": "market" },
+      { "role": "civic.hive", "function": "collective", "per": 0, "minPop": 150, "max": 1, "site": "nucleus", "area": [2000, 12000], "landmark": true, "district": "civic" },
+      { "role": "civic.organic-spire", "function": "collective", "per": 4000, "minPop": 1500, "max": 12, "site": "spread", "area": [300, 1500] },
+      { "role": "craft.workshop", "function": "workshop", "per": 1200, "minPop": 200, "max": 60, "site": "spread", "area": [100, 400] },
+      { "role": "open.garden", "function": "common", "per": 6000, "minPop": 1000, "max": 12, "site": "spread", "area": [3000, 20000] }
+    ]
+  }
+}

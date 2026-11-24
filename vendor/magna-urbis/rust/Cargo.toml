@@ -1,0 +1,66 @@
+[workspace]
+resolver = "3"
+# scrib-worldgen vendoring trim (see ../VENDOR.md): only the library crates are vendored;
+# upstream also lists crates/wasm, crates/neural, crates/houses-wasm and excludes crates/neural-*.
+members = ["crates/core", "crates/geom", "crates/graph", "crates/terrain", "crates/random", "crates/houses", "crates/local"]
+
+[workspace.package]
+edition = "2024"
+license = "AGPL-3.0-only"
+publish = false
+
+# Dev/test profile tuned for edit -> rebuild in seconds (see CLAUDE.md "Rust builds"):
+# workspace crates get light optimisation, line tables only, incremental and many codegen units;
+# third-party dependencies are compiled once at full speed.
+[profile.dev]
+opt-level = 1
+debug = "line-tables-only"
+incremental = true
+codegen-units = 256
+
+[profile.dev.package."*"]
+opt-level = 3
+debug = false
+
+# Terrain/erosion/hydrology kernels run per camera move and per flood and are rarely edited:
+# full speed without debug checks.
+[profile.dev.package.magna-urbis-terrain]
+opt-level = 3
+debug-assertions = false
+overflow-checks = false
+
+# Urban/settlements/resources: edited all the time, so cheap to recompile.
+[profile.dev.package.magna-urbis-core]
+opt-level = 1
+debug-assertions = false
+overflow-checks = false
+
+# Match the dev settings of the urban stages that use the geometry kernel.
+[profile.dev.package.magna-urbis-geom]
+debug-assertions = false
+overflow-checks = false
+
+# Heavy geometry test suites, no dependency on the urban crate: an urban edit never rebuilds it.
+[profile.dev.package.magna-urbis-houses]
+opt-level = 2
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+
+# Iteration builds (agents, probes, local engine tests): release speed without LTO,
+# many codegen units and incremental compilation. `cargo build --profile fast ...`;
+# binaries land in target/fast/. The deployed engine keeps `release`.
+[profile.fast]
+inherits = "release"
+lto = false
+codegen-units = 256
+incremental = true
+
+# Browser WASM release: whole-program optimisation, single codegen unit.
+# (No panic = "abort": the urban stages rely on catch_unwind around geometry kernels.)
+[profile.wasm-release]
+inherits = "release"
+opt-level = 3
+lto = "fat"
+codegen-units = 1

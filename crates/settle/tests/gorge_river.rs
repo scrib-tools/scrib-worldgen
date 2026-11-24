@@ -11,6 +11,8 @@ use settle::site::{SiteMeta, SiteRaster};
 use settle::{Prepared, Recipe, crossing, prepare, run_culture};
 use std::collections::BTreeMap;
 
+mod common;
+
 const CELL_M: f64 = 5.0;
 const SIDE_CELLS: usize = 480;
 const ORIGIN_M: [f64; 2] = [10_000.0, 20_000.0];
@@ -146,5 +148,13 @@ fn the_founding_crossing_spans_the_river_and_the_town_takes_both_banks() {
         assert_eq!(lots[2], 0, "{culture}: lots touching the river");
         assert!(streets[0] > 0 && streets[1] > 0, "{culture}: streets on one bank only {streets:?}");
         assert!(bridges >= 1, "{culture}: no bridge");
+
+        // PL-0 on arm B's recipe: lots.json contract and determinism for this culture.
+        let text = settle::lots::lots_json(&settle::lots::lots(&site, &recipe.seed.value, &prepared, &run).file).unwrap();
+        let with = common::check_lots(&text, &run.partition, culture);
+        eprintln!("{culture}: {} lots, {with} with a footprint", run.partition.parcels.len());
+        assert!(with > 0, "{culture}: no lot carries a building footprint");
+        let again = settle::lots::lots_json(&settle::lots::lots(&site, &recipe.seed.value, &prepared, &run).file).unwrap();
+        assert!(text == again, "{culture}: lots.json differs between two calls");
     }
 }

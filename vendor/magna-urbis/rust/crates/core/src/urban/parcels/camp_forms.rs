@@ -1,0 +1,1102 @@
+//! Camp forms from placed dwellings (catalogue `campForm`): the camp is laid
+//! out as its people pitch it — dwellings as points along the culture's
+//! figure, deformed by the land, never a geometric target — and its land is
+//! the Voronoi tessellation of those points (the « alvéoles »): each dwelling
+//! holds the ground nearer to it than to any neighbour, open-ground points
+//! fill the gaps so a cell stays the size of a household's yard.
+//!
+//! Figures (ethnographic sketch, `_agents_blackboard` camp research):
+//! - `circle` — one loose ring open to a bearing, the council ground inside
+//!   (Plains gathering camp); a second partial row only for overflow;
+//! - `horseshoe` — huts in an arc around the byre, the head's hut at the back
+//!   facing the gate (Zulu umuzi, Maasai enkang);
+//! - `court` — the head's tent at the back of an open court, the senior
+//!   households in a line beside it, the rest in small family groups of a
+//!   few tents scattered around and behind, doors toward the opening (Mongol
+//!   ordu: ails around the khan's ordo, open to the south);
+//! - `plaza` — a few long houses around a rectangular plaza (Tupi-Guarani).
+//! A camp too large for one figure splits into several (a new umuzi, a new
+//! band circle, a new plaza village) instead of adding rings.
+//!
+//! Correct by construction like the other camp forms: the tessellation of the
+//! plane is computed once from the layout (centre, blocks, key), every block
+//! takes its share; cells are convex, so pieces partition a block exactly.
+use super::*;
+use std::f64::consts::{PI, TAU};
+
+struct Site {
+    p: Point,
+    hold: Hold,
+    /// Sites of one group form one tile (a long house, the head's compound,
+    /// the central ground).
+    group: usize,
+    nominal: f64,
+}
+
+struct Plan {
+    sites: Vec<Site>,
+    paths: Vec<Vec<Point>>,
+    groups: usize,
+}
+
+pub(super) struct Entry { p:Point, normal:Point, half:f64 }
+pub(super) fn entries(layout:&Layout, c:Point)->Vec<Entry> {
+    let explicit=|s:&super::super::super::Street|matches!(s.role.as_str(),"regional"|"road"|"gate-street"|"approach"|"outbound");
+    let has_regional=layout.streets.iter().any(explicit);
+    layout.streets.iter().filter(|s|explicit(s)||!has_regional&&s.rank<=1&&matches!(s.role.as_str(),"street"|"lane"|"track"))
+        .filter_map(|s|s.path.windows(2).enumerate().filter(|(_,w)|length(sub(w[1],w[0]))>1e-6)
+            .min_by(|(_,a),(_,b)|crate::urban::geometry::distance(c,a[0],a[1]).0.total_cmp(&crate::urban::geometry::distance(c,b[0],b[1]).0))
+            .map(|(i,w)|{let d=unit(sub(w[1],w[0]));let a=s.widths.get(i).copied().unwrap_or(4.0);let b=s.widths.get(i+1).copied().unwrap_or(a);
+                Entry{p:scale(add(w[0],w[1]),0.5),normal:Point{x:-d.y,y:d.x},half:0.25*(a+b)}}))
+        .collect()
+}
+impl Plan {
+    fn group(&mut self) -> usize {
+        self.groups += 1;
+        self.groups - 1
+    }
+    fn add(&mut self, p: Point, hold: Hold, nominal: f64) -> usize {
+        let g = self.group();
+        self.sites.push(Site { p, hold, group: g, nominal });
+        g
+    }
+}
+
+/// Unit vector at a bearing.
+fn dir(a: f64) -> Point {
+    Point { x: a.cos(), y: a.sin() }
+}
+fn lerp(a: Point, b: Point, t: f64) -> Point {
+    add(a, scale(sub(b, a), t))
+}
+
+/// A closed figure around `c`: radius `r` deformed by a few low harmonics
+/// and stretched along `axis` (`aspect` ≥ 1), so no two camps share a shape.
+struct Figure {
+    c: Point,
+    r: f64,
+    aspect: f64,
+    axis: f64,
+    harmonics: [(f64, f64); 3],
+}
+impl Figure {
+    fn new(c: Point, r: f64, rng: &mut Rng, wobble: f64) -> Self {
+        Figure {
+            c,
+            r,
+            aspect: 1.0 + rng.range(0.0, 0.35) * wobble,
+            axis: rng.range(0.0, PI),
+            harmonics: [
+                (rng.range(0.03, 0.09) * wobble, rng.range(0.0, TAU)),
+                (rng.range(0.02, 0.06) * wobble, rng.range(0.0, TAU)),
+                (rng.range(0.0, 0.04) * wobble, rng.range(0.0, TAU)),
+            ],
+        }
+    }
+    /// Point of the figure at bearing `a`, offset `dr` outward.
+    fn at(&self, a: f64, dr: f64) -> Point {
+        let k = 1.0
+            + self
+                .harmonics
+                .iter()
+                .enumerate()
+                .map(|(i, (amp, ph))| amp * ((i as f64 + 2.0) * a + ph).sin())
+                .sum::<f64>();
+        let rel = a - self.axis;
+        let (ex, ey) = (rel.cos() * self.aspect.sqrt(), rel.sin() / self.aspect.sqrt());
+        let s = (ex * ex + ey * ey).sqrt();
+        let rr = self.r * k * s + dr;
+        add(self.c, scale(dir(a), rr))
+    }
+    /// Arc length of the figure from `a0` over `span` (sampled).
+    fn length(&self, a0: f64, span: f64, dr: f64) -> f64 {
+        let n = 64;
+        (0..n)
+            .map(|i| {
+                let (t0, t1) = (a0 + span * i as f64 / n as f64, a0 + span * (i + 1) as f64 / n as f64);
+                length(sub(self.at(t1, dr), self.at(t0, dr)))
+            })
+            .sum()
+    }
+    /// `n` bearings evenly spaced by arc length over `[a0, a0 + span]`.
+    fn bearings(&self, a0: f64, span: f64, dr: f64, n: usize) -> Vec<f64> {
+        let m = 256;
+        let mut acc = vec![0.0];
+        for i in 0..m {
+            let (t0, t1) = (a0 + span * i as f64 / m as f64, a0 + span * (i + 1) as f64 / m as f64);
+            acc.push(acc[i] + length(sub(self.at(t1, dr), self.at(t0, dr))));
+        }
+        let total = acc[m];
+        (0..n)
+            .map(|k| {
+                let target = total * (k as f64 + 0.5) / n as f64;
+                let i = acc.partition_point(|&v| v < target).clamp(1, m);
+                let f = (target - acc[i - 1]) / (acc[i] - acc[i - 1]).max(1e-9);
+                a0 + span * ((i - 1) as f64 + f) / m as f64
+            })
+            .collect()
+    }
+    fn polyline(&self, a0: f64, span: f64, dr: f64) -> Vec<Point> {
+        let n = ((span * self.r / 4.0).ceil() as usize).clamp(8, 160);
+        (0..=n).map(|i| self.at(a0 + span * i as f64 / n as f64, dr)).collect()
+    }
+}
+
+/// Households the camp must lodge, one cell per household (or per long
+/// house of `per_house` households); `None` without a programme.
+fn households(layout: &Layout, per_house: f64) -> Option<usize> {
+    let programme = layout.programme.as_ref()?;
+    let mut n = 0.0;
+    for d in &programme.demands {
+        if d.unit == "domesticUnits" && d.requested > 0.0 {
+            n += (d.requested / per_house.max(1.0)).ceil();
+        } else if d.placement == "parcel" && super::super::super::programme::camps::needs_cell(layout, d) {
+            n += d.sites.max(1) as f64;
+        }
+    }
+    (n > 0.0).then_some(n.ceil() as usize)
+}
+
+/// Ring figures (circle, horseshoe): `n` dwellings in one row, a second
+/// partial row only beyond the figure's capacity, a centre ground, a path on
+/// the row's inner side. Returns the figure's outer radius.
+#[allow(clippy::too_many_arguments)]
+fn ring_unit(
+    plan: &mut Plan,
+    rng: &mut Rng,
+    c: Point,
+    n: usize,
+    spacing: f64,
+    depth: f64,
+    path: f64,
+    gap: f64,
+    beta: f64,
+    head: bool,
+    centre_frac: f64,
+    room: f64,
+    on: &dyn Fn(Point) -> bool,
+    entries: &[Entry],
+    row_cap: Option<usize>,
+    wobble: f64,
+) -> (Figure, f64) {
+    let span = TAU - gap;
+    // Radius holding the row within the land (`room`), never smaller than a
+    // sensible centre ground; what one row cannot hold goes to outer rows.
+    let r = (row_cap.map_or(n, |cap| n.min(cap)) as f64 * spacing / span).min(0.62 * room).max(depth * (1.0 + 2.0 * centre_frac)).max(12.0);
+    let fig = Figure::new(c, r, rng, wobble);
+    let a0 = beta + 0.5 * gap;
+    // Centre ground: a few sites inside the inner path, one group.
+    // Centre ground sites stay far enough inside that every dwelling's cell
+    // reaches across the ring path (its front), jitter included.
+    let centre = plan.group();
+    let rc = (r - 1.4 * depth - 2.0 * path - 2.0).max(3.0);
+    let steps = ((rc / spacing.max(6.0)).ceil() as i32).max(1);
+    for i in -steps..=steps {
+        for j in -steps..=steps {
+            let q = Point { x: i as f64 * rc / steps as f64, y: j as f64 * rc / steps as f64 };
+            if length(q) <= rc {
+                let rel = q.y.atan2(q.x);
+                // Follow the figure's outline, not a circle.
+                let k = length(sub(fig.at(rel, 0.0), c)) / fig.r.max(1.0);
+                plan.sites.push(Site { p: add(c, scale(q, k)), hold: Hold::Centre, group: centre, nominal: 0.0 });
+            }
+        }
+    }
+    plan.paths.push(fig.polyline(a0 - 0.02, span + 0.04, -0.5 * depth - 0.5 * path));
+    // The row: dwellings evenly spread by arc, jittered along and across;
+    // the head's hut at the back, opposite the opening.
+    let mut placed = 0;
+    let mut rows = 0;
+    // A capped first ring (`campGrowth` concentric) grows by full rows.
+    for row in 0..row_cap.map_or(4, |_| 16) {
+        let dr = row as f64 * (depth + path);
+        let left = n - placed;
+        let cap = (fig.length(a0, span, dr) / spacing).floor() as usize;
+        let k = left.min(cap);
+        if k == 0 {
+            break;
+        }
+        rows = row + 1;
+        // An outer row fills from the back toward the horns.
+        let (b0, bspan) = if row > 0 {
+            let s = span * (k as f64 / cap.max(1) as f64).min(1.0);
+            (beta + PI - 0.5 * s, s)
+        } else {
+            (a0, span)
+        };
+        let bearings = fig.bearings(b0, bspan, dr, k);
+        let back = bearings
+            .iter()
+            .enumerate()
+            .min_by(|a, b| {
+                let d = |x: f64| ((x - beta - PI).rem_euclid(TAU)).min(TAU - (x - beta - PI).rem_euclid(TAU));
+                d(*a.1).total_cmp(&d(*b.1))
+            })
+            .map(|(i, _)| i);
+        for (i, &a) in bearings.iter().enumerate() {
+            let jitter = rng.range(-0.22, 0.22) * spacing / fig.r.max(1.0);
+            let p = fig.at(a + jitter, dr + rng.range(-0.18, 0.18) * depth);
+            if !on(p) {
+                continue;
+            }
+            let is_head = head && row == 0 && Some(i) == back;
+            plan.add(p, if is_head { Hold::Head } else { Hold::Dwelling }, spacing * depth * if is_head { 2.0 } else { 1.0 });
+            placed += 1;
+            // Its mirror across the ring path: the bisector of the pair is the
+            // path's axis, so the dwelling's cell ends on the path, and the
+            // centre ground begins across it — no sliver of yard beyond the path
+            let axis = fig.at(a + jitter, dr - 0.5 * depth - 0.5 * path);
+            let mirror = sub(scale(axis, 2.0), p);
+            // (an outer row's mirror would stand among the first row's huts:
+            // those huts are its neighbours across the path already).
+            if row == 0 {
+                plan.sites.push(Site { p: mirror, hold: Hold::Centre, group: centre, nominal: 0.0 });
+            }
+        }
+        if row > 0 {
+            plan.paths.push(fig.polyline(b0, bspan, dr - 0.5 * depth - 0.5 * path));
+        }
+    }
+    // Enter through the cultural opening, then walk outside the hut rows to
+    // actual regional kerbs. Each last leg meets the road across its width.
+    let outside=rows.max(1) as f64*(depth+path);
+    let gate=fig.at(beta,outside);
+    let mut approach=fig.polyline(beta,0.5*gap,-0.5*depth-0.5*path);
+    approach.reverse();approach.push(gate);plan.paths.push(approach);
+    for entry in entries {
+        let mut n=entry.normal;
+        if dot(sub(c,entry.p),n)<0. {n=scale(n,-1.);}
+        let mut landing=add(entry.p,scale(n,entry.half+path));
+        if !on(landing) {n=scale(n,-1.);landing=add(entry.p,scale(n,entry.half+path));}
+        if !on(landing) {continue;}
+        let a=(landing.y-c.y).atan2(landing.x-c.x);
+        let delta=(a-beta+PI).rem_euclid(TAU)-PI;
+        let mut way=if delta==0. {vec![gate]}else if delta>0. {fig.polyline(beta,delta,outside)}else{let mut p=fig.polyline(a,-delta,outside);p.reverse();p};
+        way.extend([landing,entry.p]);plan.paths.push(way);
+    }
+    (fig, outside)
+}
+
+/// Centres of `units` figures of outer radius `r` on the camp's land: the
+/// first at the camp's centre, daughters as close around it as the land
+/// holds them whole, clear of the roads, first away from the opening. Fewer when the land holds
+/// fewer.
+fn daughters(frame: &Frame, units: usize, r: f64, beta: f64, clear: f64, on: &dyn Fn(Point) -> bool, roads: &[(Point, Point)]) -> Vec<Point> {
+    let mut centres = vec![frame.centre];
+    // Clear of the roads first; else a road may cross the rows, not the
+    // centre ground.
+    'unit: for _ in 1..units {
+        for clearance in [1.0, 0.45] {
+        for ring in 0..40 {
+            let d = 2.0 * r + clear + ring as f64 * 0.2 * r;
+            if d > frame.reach + r {
+                break;
+            }
+            for t in 0..24 {
+                let side = if t % 2 == 0 { 1.0 } else { -1.0 };
+                let c = add(frame.centre, scale(dir(beta + PI + side * ((t + 1) / 2) as f64 * TAU / 24.0), d));
+                if centres.iter().any(|&o| length(sub(o, c)) < 2.0 * r + clear) {
+                    continue;
+                }
+                if roads.iter().any(|&(a, b)| crate::urban::geometry::distance(c, a, b).0 < clearance * r) {
+                    continue;
+                }
+                if on(c) && (0..24).all(|i| on(add(c, scale(dir(i as f64 * TAU / 24.0), r)))) {
+                    centres.push(c);
+                    continue 'unit;
+                }
+            }
+        }
+        }
+        break;
+    }
+    centres
+}
+
+/// Segments of the roads through a camp's land (regional and main ways).
+fn roads(layout: &Layout) -> Vec<(Point, Point)> {
+    layout.streets.iter().filter(|s| s.rank <= 1 || s.role == "regional").flat_map(|s| s.path.windows(2).map(|w| (w[0], w[1]))).collect()
+}
+
+/// The figure's outside from bearing `from` to `to`, the shorter way.
+fn around(fig: &Figure, dr: f64, from: f64, to: f64) -> Vec<Point> {
+    let delta = (to - from + PI).rem_euclid(TAU) - PI;
+    if delta.abs() < 1e-3 {
+        vec![fig.at(from, dr)]
+    } else if delta > 0.0 {
+        fig.polyline(from, delta, dr)
+    } else {
+        let mut p = fig.polyline(to, -delta, dr);
+        p.reverse();
+        p
+    }
+}
+
+/// Ring figures grown past one figure (`campGrowth`): `concentric` caps the
+/// first row (`campRingMax`) and lays the rest on full rows around it;
+/// `clusters` founds daughter camps of at most `campUnitMax` dwellings
+/// around the first, each a capped figure with its centre ground and its
+/// opening, joined by a footpath outside the rows to the first camp's gate.
+#[allow(clippy::too_many_arguments)]
+fn grown_rings(plan: &mut Plan, rng: &mut Rng, frame: &Frame, morph: &Morph, n: usize, beta: f64, clusters: bool, allowance: f64, on: &dyn Fn(Point) -> bool, entries: &[Entry], roads: &[(Point, Point)], wobble: f64) -> Vec<(Point, f64)> {
+    use super::super::super::kinds;
+    let g = kinds::ring_geometry(morph);
+    let cap = kinds::camp_ring_max(morph);
+    let head = morph.text("campHead") == "back";
+    // A compass opening is cultural (the tipi circle opens east): daughter
+    // camps keep it; a road opening turns each daughter toward the first.
+    let compass = matches!(morph.text("campOpening"), "east" | "south" | "west" | "north");
+    // The camps are sited for its households; a larger allowance of
+    // pitches (`admitted_form`) only deepens their rows, it never moves them.
+    let households = ((n as f64 / allowance).ceil() as usize).max(1);
+    let spread = if clusters { morph.number_or("campGroupVariation",0.0).clamp(0.0,0.75) } else {0.0};
+    let mut variation = rng.fork("camp-groups");
+    let per = if spread>0.0 { (kinds::camp_unit_max(morph) as f64*variation.range(1.0-0.3*spread,1.0+0.3*spread)).round().max(1.0) as usize } else {kinds::camp_unit_max(morph)};
+    let wanted = if clusters { households.div_ceil(per).max(1) } else { 1 };
+    // A daughter camp keeps two rows: its first ring holds half of it.
+    let unit_cap = |k: usize| if clusters { cap.min(k.div_ceil(2)).max(12) } else { cap };
+    let mut centres = vec![frame.centre];
+    for units in (1..=wanted).rev() {
+        let k = if spread>0.0 { *kinds::camp_variation::groups(households,units,spread,&mut variation.fork(&units.to_string())).iter().max().unwrap() } else {households.div_ceil(units)};
+        let found = daughters(frame, units, 1.2 * kinds::ring_extent(k, unit_cap(k), &g), beta, 2.0 * g.path + g.depth, on, roads);
+        if found.len() == units {
+            centres = found;
+            break;
+        }
+    }
+    let units = centres.len();
+    let counts = |total| if spread>0.0 { kinds::camp_variation::groups(total,units,spread,&mut variation.fork(&units.to_string())) }
+        else {(0..units).map(|u|total/units+usize::from(u<total%units)).collect()};
+    let (pitches, homes) = (counts(n),counts(households));
+    let room = if units > 1 { f64::INFINITY } else { frame.equivalent };
+    let mut first: Option<(Figure, f64, f64)> = None;
+    let mut figures = vec![];
+    for (u, &c) in centres.iter().enumerate() {
+        let k = pitches[u];
+        let toward = (frame.centre.y - c.y).atan2(frame.centre.x - c.x);
+        let b = if u == 0 || compass { beta } else { toward };
+        let cap_k = unit_cap(homes[u]);
+        let (fig, outside) = ring_unit(plan, rng, c, k, g.spacing, g.depth, g.path, g.gap, b, head, g.centre, room, on, if u == 0 { entries } else { &[] }, Some(cap_k), wobble);
+        figures.push((c, (0..32).map(|i| length(sub(fig.at(i as f64 * TAU / 32.0, outside), c))).fold(0.0, f64::max)));
+        match &first {
+            None => first = Some((fig, outside, b)),
+            Some((f0, o0, b0)) => {
+                // Out of the daughter's gate round its rows to the side facing
+                // the first camp, across, round the first camp to its gate.
+                let mut way = around(&fig, outside, b, toward);
+                way.extend(around(f0, *o0, toward + PI, *b0));
+                plan.paths.push(way);
+            }
+        }
+    }
+    figures
+}
+
+/// Mongol camps grown past one ordu (`campGrowth`): `concentric` pitches the
+/// tents in full rings around the court (the küriyen), the head's tent at its
+/// back facing the opening; `clusters` founds ordus of at most `campUnitMax`
+/// tents (else 80) around the first, each its court, head and ails, joined
+/// court to court by a track.
+#[allow(clippy::too_many_arguments)]
+fn grown_court(plan: &mut Plan, rng: &mut Rng, frame: &Frame, morph: &Morph, n: usize, depth: f64, path: f64, beta: f64, clusters: bool, allowance: f64, on: &dyn Fn(Point) -> bool, entries: &[Entry], roads: &[(Point, Point)]) -> Vec<(Point, f64)> {
+    use super::super::super::kinds;
+    let g = kinds::ring_geometry(morph);
+    if !clusters {
+        let from = plan.sites.len();
+        let (fig, outside) = ring_unit(plan, rng, frame.centre, n, g.spacing, depth, path, g.gap, beta, true, g.centre, frame.equivalent, on, entries, Some(kinds::camp_ring_max(morph)), 1.0);
+        // The court inside the rings is open ground, not the culture's
+        // court-yard plot.
+        for site in &mut plan.sites[from..] {
+            if site.hold == Hold::Centre {
+                site.hold = Hold::Open;
+            }
+        }
+        let c = frame.centre;
+        return vec![(c, (0..32).map(|i| length(sub(fig.at(i as f64 * TAU / 32.0, outside), c))).fold(0.0, f64::max))];
+    }
+    let s = g.spacing;
+    let households = ((n as f64 / allowance).ceil() as usize).max(1);
+    let wanted = households.div_ceil(kinds::camp_unit_max(morph)).max(1);
+    let (mut centres, mut r) = (vec![frame.centre], kinds::court_extent(households, s));
+    for units in (1..=wanted).rev() {
+        r = kinds::court_extent(households.div_ceil(units), s);
+        let found = daughters(frame, units, r, beta, 2.0 * path + depth, on, roads);
+        if found.len() == units {
+            centres = found;
+            break;
+        }
+    }
+    let units = centres.len();
+    // Join the actual senior front paths, not points in the open courts:
+    // a near miss leaves each court's dwelling paths disconnected.
+    let front = scale(dir(beta), 0.5 * (depth + path));
+    for (u, &c) in centres.iter().enumerate() {
+        let k = n / units + usize::from(u < n % units);
+        let bound = |p: Point| on(p) && length(sub(p, c)) <= r;
+        court(plan, rng, c, k.max(3), s, depth, path, beta, &bound);
+        if u > 0 {
+            let (a, b) = (add(c, front), add(frame.centre, front));
+            plan.paths.push(vec![a, lerp(a, b, 0.5), b]);
+        }
+    }
+    // A camp's internal tracks must reach a real road before they can serve
+    // dwelling plots. Cross the kerb normally, as the ring entrance does,
+    // and join an existing track rather than an unconnected court point.
+    for entry in entries {
+        let mut normal = entry.normal;
+        if dot(sub(frame.centre, entry.p), normal) < 0.0 {
+            normal = scale(normal, -1.0);
+        }
+        let mut landing = add(entry.p, scale(normal, entry.half + path));
+        if !on(landing) {
+            normal = scale(normal, -1.0);
+            landing = add(entry.p, scale(normal, entry.half + path));
+        }
+        if !on(landing) { continue; }
+        let join = plan.paths.iter().flat_map(|p| p.windows(2))
+            .map(|w| crate::urban::geometry::distance(landing, w[0], w[1]))
+            .min_by(|a, b| a.0.total_cmp(&b.0));
+        if let Some((_, _, to)) = join {
+            plan.paths.push(vec![to, landing, entry.p]);
+        }
+    }
+    centres.into_iter().map(|c| (c, r)).collect()
+}
+
+/// Mongol ordu: the head's tent at the back of the court, the senior tents in
+/// a line beside it, then family groups (ails) of 3–8 tents in short lines
+/// facing the opening, scattered in a loose band around and behind.
+#[allow(clippy::too_many_arguments)]
+fn court(plan: &mut Plan, rng: &mut Rng, c: Point, n: usize, spacing: f64, depth: f64, path: f64, beta: f64, on: &dyn Fn(Point) -> bool) {
+    let fwd = dir(beta);
+    let side = Point { x: -fwd.y, y: fwd.x };
+    let court_w = (2.5 * spacing).max(30.0);
+    let court_d = (2.0 * spacing).max(26.0);
+    // The court: open ground in front of the head.
+    let centre = plan.group();
+    for i in -2..=2 {
+        for j in 1..=3 {
+            let q = add(c, add(scale(side, i as f64 * court_w / 5.0), scale(fwd, j as f64 * court_d / 3.5)));
+            plan.sites.push(Site { p: q, hold: Hold::Centre, group: centre, nominal: 0.0 });
+        }
+    }
+    // The head's compound (two sites, one tile) at the back of the court,
+    // then the senior line beside it, spaced wider than family tents.
+    let head = plan.group();
+    for s in [-0.35, 0.35] {
+        plan.sites.push(Site { p: add(c, scale(side, s * spacing)), hold: Hold::Head, group: head, nominal: 2.0 * spacing * depth });
+    }
+    let mut placed = 1;
+    let senior = (n / 12).clamp(2, 10);
+    for k in 0..senior {
+        let s = (k / 2 + 1) as f64 * 1.8 * spacing * if k % 2 == 0 { -1.0 } else { 1.0 };
+        let p = add(c, add(scale(side, s), scale(fwd, rng.range(-0.3, 0.6) * depth)));
+        if on(p) && placed < n {
+            plan.add(p, Hold::Dwelling, spacing * depth);
+            placed += 1;
+        }
+    }
+    let line_half = (senior / 2 + 1) as f64 * 1.8 * spacing;
+    plan.paths.push(vec![add(c, add(scale(side, -line_half), scale(fwd, 0.5 * depth + 0.5 * path))), add(c, add(scale(side, line_half), scale(fwd, 0.5 * depth + 0.5 * path)))]);
+    // Family groups: cluster centres by dart throwing in a band that widens
+    // until the camp's households are lodged, mostly behind and beside the
+    // court (never in front of it, which stays the open approach).
+    let min_gap = 3.0 * spacing;
+    let mut centres: Vec<Point> = vec![c];
+    let mut band = court_w.max(court_d) + 2.0 * spacing;
+    let mut tries = 0;
+    while placed < n && tries < 20000 {
+        tries += 1;
+        if tries % 40 == 0 {
+            band += spacing;
+        }
+        // Behind and beside the court first; the approach side only when the
+        // land holds nothing more there.
+        let open = if tries > 6000 { 1.0 } else { 0.62 };
+        let a = beta + PI + rng.range(-open, open) * PI;
+        let rr = rng.range(court_w.max(court_d) + spacing, band);
+        let q = add(c, scale(dir(a), rr));
+        if centres.iter().any(|&o| length(sub(o, q)) < min_gap) || !on(q) {
+            continue;
+        }
+        centres.push(q);
+        // An ail: a short line across the opening's direction, doors toward it.
+        let k = (rng.int(3, 8) as usize).min(n - placed);
+        let tilt = rng.range(-0.35, 0.35);
+        let along = add(scale(side, tilt.cos()), scale(fwd, tilt.sin()));
+        let step = spacing * rng.range(0.85, 1.25);
+        let mut first = None;
+        let mut last = None;
+        for t in 0..k {
+            let off = (t as f64 - 0.5 * (k as f64 - 1.0)) * step;
+            let p = add(q, add(scale(along, off), scale(fwd, rng.range(-0.25, 0.25) * depth)));
+            if !on(p) {
+                continue;
+            }
+            plan.add(p, Hold::Dwelling, spacing * depth);
+            placed += 1;
+            first.get_or_insert(p);
+            last = Some(p);
+        }
+        // The ail's front path and its track to the court.
+        if let (Some(f), Some(l)) = (first, last) {
+            let front = scale(fwd, 0.5 * depth + 0.5 * path);
+            let (f, l) = (add(f, front), add(l, front));
+            let mid = lerp(f, l, 0.5);
+            plan.paths.push(vec![add(f, scale(along, -0.5 * step)), add(l, scale(along, 0.5 * step))]);
+            // Its track joins the nearest path already laid (another ail's
+            // track or front, the court), so tracks branch like trodden ways.
+            let own = plan.paths.len() - 1;
+            let to = plan.paths[..own]
+                .iter()
+                .flat_map(|l| l.windows(2).map(|w| crate::urban::geometry::distance(mid, w[0], w[1])))
+                .min_by(|a, b| a.0.total_cmp(&b.0))
+                .map_or(c, |d| d.2);
+            let bend = add(lerp(mid, to, 0.5), scale(side, rng.range(-0.12, 0.12) * length(sub(to, mid))));
+            plan.paths.push(vec![mid, bend, to]);
+        }
+    }
+}
+
+/// Plaza village: long houses (several sites each, one tile) around a
+/// rectangular plaza, their long side on it.
+#[allow(clippy::too_many_arguments)]
+fn plaza(plan: &mut Plan, rng: &mut Rng, c: Point, houses: usize, house: [f64; 2], path: f64, room: f64, on: &dyn Fn(Point) -> bool) {
+    let [width, mut len] = house;
+    let rot = rng.range(0.0, PI);
+    let (u, v) = (dir(rot), dir(rot + 0.5 * PI));
+    // The plaza and its ring of houses fit the land (`room`: half extent).
+    let per_side = houses.div_ceil(4).max(1) as f64;
+    let mut half_l = 0.5 * (per_side * 1.25 * len).max(1.2 * len) * rng.range(0.9, 1.1);
+    let fit = (room - width - path - 2.0).max(10.0);
+    if half_l > fit {
+        len *= fit / half_l;
+        half_l = fit;
+    }
+    let half_w = half_l * rng.range(0.7, 0.9);
+    let centre = plan.group();
+    for i in -2..=2 {
+        for j in -2..=2 {
+            plan.sites.push(Site { p: add(c, add(scale(u, i as f64 * (half_l - width) / 2.5), scale(v, j as f64 * (half_w - width) / 2.5))), hold: Hold::Centre, group: centre, nominal: 0.0 });
+        }
+    }
+    let at = |s: f64, t: f64| add(c, add(scale(u, s), scale(v, t)));
+    let ring = vec![at(-half_l, -half_w), at(half_l, -half_w), at(half_l, half_w), at(-half_l, half_w), at(-half_l, -half_w)];
+    plan.paths.push(ring);
+    for h in 0..houses {
+        let side = h % 4;
+        let slot = (h / 4) as f64;
+        let count = ((houses - side) as f64 / 4.0).ceil().max(1.0);
+        let pos = (slot + 0.5) / count * 2.0 - 1.0;
+        let jitter = rng.range(-0.08, 0.08);
+        // Centre of the house, its long axis along the plaza side.
+        let (centre_p, axis) = match side {
+            0 => (at((pos + jitter) * half_l * 0.75, -half_w - 0.5 * path - 0.5 * width - 1.0), u),
+            1 => (at(half_l + 0.5 * path + 0.5 * width + 1.0, (pos + jitter) * half_w * 0.75), v),
+            2 => (at((pos + jitter) * half_l * 0.75, half_w + 0.5 * path + 0.5 * width + 1.0), u),
+            _ => (at(-half_l - 0.5 * path - 0.5 * width - 1.0, (pos + jitter) * half_w * 0.75), v),
+        };
+        if !on(centre_p) {
+            continue;
+        }
+        let g = plan.group();
+        for t in [-0.33, 0.0, 0.33] {
+            plan.sites.push(Site { p: add(centre_p, scale(axis, t * len)), hold: Hold::Dwelling, group: g, nominal: width * len });
+        }
+    }
+}
+
+/// Buckets of site indices for neighbour queries.
+struct Grid {
+    size: f64,
+    x0: f64,
+    y0: f64,
+    nx: i64,
+    ny: i64,
+    cells: Vec<Vec<usize>>,
+}
+impl Grid {
+    fn new(points: &[Point], size: f64) -> Self {
+        let (x0, y0, x1, y1) = points.iter().fold((f64::MAX, f64::MAX, f64::MIN, f64::MIN), |b, p| (b.0.min(p.x), b.1.min(p.y), b.2.max(p.x), b.3.max(p.y)));
+        // At most 512 buckets a side.
+        let size = size.max((x1 - x0).max(y1 - y0) / 512.0);
+        let nx = ((x1 - x0) / size).floor() as i64 + 1;
+        let ny = ((y1 - y0) / size).floor() as i64 + 1;
+        let mut cells = vec![vec![]; (nx * ny) as usize];
+        for (i, p) in points.iter().enumerate() {
+            let (cx, cy) = (((p.x - x0) / size) as i64, ((p.y - y0) / size) as i64);
+            cells[(cy * nx + cx) as usize].push(i);
+        }
+        Grid { size, x0, y0, nx, ny, cells }
+    }
+    /// Sites within the square of half side `r` around `p`.
+    fn near(&self, p: Point, r: f64, out: &mut Vec<usize>) {
+        out.clear();
+        let lo = |v: f64, o: f64, n: i64| (((v - r - o) / self.size).floor() as i64).clamp(0, n - 1);
+        let hi = |v: f64, o: f64, n: i64| (((v + r - o) / self.size).floor() as i64).clamp(0, n - 1);
+        for cy in lo(p.y, self.y0, self.ny)..=hi(p.y, self.y0, self.ny) {
+            for cx in lo(p.x, self.x0, self.nx)..=hi(p.x, self.x0, self.nx) {
+                out.extend_from_slice(&self.cells[(cy * self.nx + cx) as usize]);
+            }
+        }
+    }
+}
+
+/// Convex Voronoi cell of site `i` inside the square (half-plane clipping by
+/// neighbours of growing radius, canonical bisectors so neighbouring cells
+/// share their edge).
+fn cell(points: &[Point], i: usize, square: &[Point], grid: &Grid, scratch: &mut Vec<usize>) -> Vec<Point> {
+    let pi = points[i];
+    let mut poly: Vec<Point> = square.to_vec();
+    let mut done = 0.0_f64;
+    let mut r = 2.0 * grid.size;
+    loop {
+        grid.near(pi, r, scratch);
+        let mut order: Vec<(f64, usize)> = scratch
+            .iter()
+            .filter(|&&j| j != i)
+            .map(|&j| (length(sub(points[j], pi)), j))
+            .filter(|&(d, _)| d >= done && d < r && d > 1e-6)
+            .collect();
+        order.sort_by(|a, b| a.0.total_cmp(&b.0).then(a.1.cmp(&b.1)));
+        for &(_, j) in &order {
+            let (a, b) = if i < j { (pi, points[j]) } else { (points[j], pi) };
+            let m = lerp(a, b, 0.5);
+            let nrm = sub(b, a);
+            let side = |p: Point| dot(sub(p, m), nrm);
+            let keep = |p: Point| if i < j { side(p) <= 0.0 } else { side(p) >= 0.0 };
+            let mut out = Vec::with_capacity(poly.len() + 1);
+            for k in 0..poly.len() {
+                let (p, q) = (poly[k], poly[(k + 1) % poly.len()]);
+                let (kp, kq) = (keep(p), keep(q));
+                if kp {
+                    out.push(p);
+                }
+                if kp != kq {
+                    let (sp, sq) = (side(p), side(q));
+                    out.push(lerp(p, q, sp / (sp - sq)));
+                }
+            }
+            poly = out;
+            if poly.len() < 3 {
+                return vec![];
+            }
+        }
+        // Every site farther than twice the cell's reach cannot cut it.
+        let reach = poly.iter().map(|&v| length(sub(v, pi))).fold(0.0, f64::max);
+        if 2.0 * reach <= r {
+            break;
+        }
+        done = r;
+        r = 2.0 * reach + 1e-6;
+    }
+    // A shared grid makes vertices computed from both sides coincide.
+    poly.iter().map(|p| Point { x: (p.x * 1e5).round() / 1e5, y: (p.y * 1e5).round() / 1e5 }).collect()
+}
+
+fn near_polyline(p: Point, lines: &[Vec<Point>], r: f64) -> bool {
+    lines.iter().any(|l| l.windows(2).any(|w| crate::urban::geometry::distance(p, w[0], w[1]).0 < r))
+}
+
+#[cfg(test)]
+mod review_tests {
+    use crate::urban::{LayoutConfig, ParcelConfig, Point, Site, Street, Surface, generate_quarters, generate_parcels};
+    #[test]
+    fn camp_review_native_cluster_variation_keeps_retained_parcels() {
+        let (height,water) = (vec![0.;64*64],vec![0;64*64]);
+        let surface = Surface {geometry:None,width:4000.,n:64,height:&height,water:&water, interpolation: Default::default(),};
+        let site = Site {key:"native-groups".into(),name:String::new(),population:1500,culture:"nomad-camp".into(),center:Point{x:2000.,y:2000.},radius:300., neighbours: Vec::new()};
+        let roads = [Street {path:vec![Point{x:1500.,y:2000.},Point{x:2500.,y:2000.}],widths:vec![4.;2],rank:0,role:"regional".into()}];
+        let draw = || {
+            let cfg = LayoutConfig {camp_growth:"clusters".into(),..Default::default()};
+            let layouts = generate_quarters("native-groups",std::slice::from_ref(&site),&cfg,surface,&roads).unwrap();
+            let parts = generate_parcels("native-groups",&layouts,&ParcelConfig::default()).unwrap();
+            assert!(parts[0].parcels.iter().filter(|p|matches!(p.use_kind.as_str(),"plot"|"compound")).count()>100);
+            if let Ok(out) = std::env::var("CULTURE_REVIEW_OUT") {
+                std::fs::create_dir_all(&out).unwrap();
+                std::fs::write(format!("{out}/nomad.json"),serde_json::to_vec(&(&layouts,&parts)).unwrap()).unwrap();
+            }
+            serde_json::to_vec(&parts[0].parcels.iter().map(|p|&p.shape).collect::<Vec<_>>()).unwrap()
+        };
+        assert!(!draw().is_empty());
+    }
+    #[test]
+    fn camp_review_native_ring_parameter_reaches_retained_parcels() {
+        let (height,water) = (vec![0.;64*64],vec![0;64*64]);
+        let surface = Surface {geometry:None,width:4000.,n:64,height:&height,water:&water, interpolation: Default::default(),};
+        let site = Site {key:"native-wobble".into(),name:String::new(),population:500,culture:"native-plains".into(),center:Point{x:2000.,y:2000.},radius:150., neighbours: Vec::new()};
+        let roads = [Street {path:vec![Point{x:1500.,y:2000.},Point{x:2500.,y:2000.}],widths:vec![4.;2],rank:0,role:"regional".into()}];
+        let draw = |wobble| {
+            let cfg = LayoutConfig {camp_ring_wobble:wobble,..Default::default()};
+            let layouts = generate_quarters("native-wobble",std::slice::from_ref(&site),&cfg,surface,&roads).unwrap();
+            let parts = generate_parcels("native-wobble",&layouts,&ParcelConfig::default()).unwrap();
+            assert!(parts[0].parcels.iter().filter(|p|matches!(p.use_kind.as_str(),"plot"|"compound")).count()>10);
+            if let Ok(out) = std::env::var("CULTURE_REVIEW_OUT") {
+                std::fs::create_dir_all(&out).unwrap();
+                std::fs::write(format!("{out}/native-plains-{}.json",wobble.map_or("auto".into(),|v|v.to_string())),serde_json::to_vec(&(&layouts,&parts)).unwrap()).unwrap();
+            }
+            serde_json::to_vec(&parts[0].parcels.iter().map(|p|&p.shape).collect::<Vec<_>>()).unwrap()
+        };
+        let current = draw(None);
+        assert!(current==draw(Some(0.15)),"absent keeps the native figure");
+        assert!(current!=draw(Some(0.0)),"a regular circle changes actual tipi lots");
+        assert!(current!=draw(Some(0.4)),"an irregular circle changes actual tipi lots");
+    }
+}
+
+/// The camp's tiles and paths for a `campForm` figure.
+pub(super) fn tiles(frame: &Frame, morph: &Morph, layout: &Layout) -> (Vec<Tile>, Vec<Shape>) {
+    tiles_with_allowance(frame,morph,layout,1.0)
+}
+pub(super) fn tiles_with_allowance(frame:&Frame,morph:&Morph,layout:&Layout,allowance:f64)->(Vec<Tile>,Vec<Shape>) {
+    let form = morph.text("campForm");
+    let mut rng = Rng::new(&format!("camp-form:{}:{form}", frame.key));
+    let depth = morph.number_or("campRow", 10.0).max(4.0);
+    let [arc_lo, arc_hi] = morph.pair("campArc");
+    let spacing = 0.5 * (arc_lo.max(4.0) + arc_hi.max(arc_lo.max(4.0)));
+    let path = morph.number_or("campPath", 3.0).clamp(1.2, 8.0);
+    let gap = morph.number_or("campGap", 0.0).clamp(0.0, 150.0).to_radians();
+    let unit_max = morph.number_or("campUnitMax", 0.0).max(0.0) as usize;
+    let beta = opening(frame, morph, layout);
+    let entries=entries(layout,frame.centre);
+    let on = |p: Point| on_land(layout, p);
+    let mut plan = Plan { sites: vec![], paths: vec![], groups: 0 };
+    let [house_w, house_l] = morph.pair("campHouse");
+    let per_house = if form == "plaza" { (house_w * house_l / 120.0).max(1.0) } else { 1.0 };
+    // Households, else what the land holds at the figure's density.
+    // A capacity probe (no programme) sizes one figure from the land, never a
+    // field of daughter camps over the whole territory.
+    // The land bounds the camp: a probe's open-ended demand (or none) never
+    // lays out more dwellings than the land holds at the figure's density.
+    let land = ((frame.equivalent * frame.equivalent * PI) / (spacing * depth * 2.5)).ceil().clamp(3.0, 800.0) as usize;
+    // (A real programme is lodged in full; only an open-ended probe demand,
+    // far beyond the land, is cut to it.)
+    let n = match households(layout, per_house) {
+        Some(h) if h <= 4 * land => (h as f64*allowance).ceil() as usize,
+        Some(_) => land,
+        None => land.min(400),
+    }
+    .max(3);
+    // A large camp grown past one figure (`campGrowth`, never in a capacity
+    // probe, which has no programme): concentric rows or daughter camps.
+    // Figures (centre, outer radius) of a grown camp: the fine open ground
+    // stays around them, the land between them is far ground.
+    let mut figures: Vec<(Point, f64)> = vec![];
+    let growth = if layout.programme.is_some() { layout.config.as_ref().map_or("ring", |c| c.camp_growth.as_str()) } else { "ring" };
+    // Cultural daughter-camp sizes (`camp.groupVariation`, 0 = equal groups).
+    let varied = Morph {value:{let mut v=morph.value.clone();v["campGroupVariation"]=crate::urban::catalogue()["cultures"][&layout.culture]["camp"]["groupVariation"].clone();v}};
+    let morph = &varied;
+    // Absent preserves the native figure; explicit values also reach tipi camps.
+    let wobble = layout.config.as_ref().and_then(|c|c.camp_ring_wobble).map_or(1.0, |v|v.clamp(0.0,0.4)/0.15);
+    match form {
+        "court" if growth != "ring" => figures = grown_court(&mut plan, &mut rng, frame, morph, n, depth, path, beta, growth == "clusters", allowance, &on, &entries, &roads(layout)),
+        "circle" | "horseshoe" if growth != "ring" => figures = grown_rings(&mut plan, &mut rng, frame, morph, n, beta, growth == "clusters", allowance, &on, &entries, &roads(layout), wobble),
+        "court" => {
+            // Nomad spacing shrinks to what the camp's land offers per tent.
+            let per_tent = (PI * frame.equivalent * frame.equivalent / n as f64).sqrt();
+            let s = (0.75 * per_tent).clamp(0.6 * spacing, spacing);
+            court(&mut plan, &mut rng, frame.centre, n, s, depth, path, beta, &on)
+        }
+        "plaza" => {
+            let per = if unit_max > 0 { unit_max } else { 8 };
+            let mut centres = vec![frame.centre];
+            for u in 1..n.div_ceil(per) {
+                let c = add(frame.centre, scale(dir(beta + u as f64 * 2.4), 2.6 * house_l * (1.0 + (u / 3) as f64)));
+                if on(c) { centres.push(c); }
+            }
+            // A daughter plaza needs real land; otherwise the first figure
+            // holds the overflow, as the ring grammar already does.
+            let units = centres.len();
+            for (u, &c) in centres.iter().enumerate() {
+                let k = n / units + usize::from(u < n % units);
+                plaza(&mut plan, &mut rng, c, k.max(3), [house_w.max(6.0), house_l.max(12.0)], path, 0.8 * frame.equivalent / (units as f64).sqrt(), &on);
+            }
+        }
+        _ => {
+            // circle / horseshoe: one figure per unit of at most `unit_max`.
+            let per = if unit_max > 0 { unit_max } else { usize::MAX };
+            let wanted = n.div_ceil(per).max(1);
+            let head = morph.text("campHead") == "back";
+            let centre_frac = morph.number_or("campCentre", 0.3);
+            // Daughter camps stand on the land beyond the first one, away from
+            // its opening; those the land cannot hold stay in the first camp
+            // (an extra row) rather than off the map.
+            let k0 = n.div_ceil(wanted);
+            let est = (k0 as f64 * spacing / (TAU - gap)).min(0.62 * frame.equivalent) + 2.0 * (depth + path);
+            let mut centres = vec![frame.centre];
+            for u in 1..wanted {
+                let base = beta + PI + (u as f64 - 0.5 * (wanted as f64 - 1.0)) * 1.1;
+                let found = (0..12).map(|t| base + t as f64 * TAU / 12.0).map(|a| add(frame.centre, scale(dir(a), 2.3 * est))).find(|&c| on(c));
+                if let Some(c) = found {
+                    centres.push(c);
+                }
+            }
+            let units = centres.len();
+            for (u, &c) in centres.iter().enumerate() {
+                let k = n.div_ceil(units).min(n.saturating_sub(u * n.div_ceil(units)));
+                if k == 0 {
+                    break;
+                }
+                ring_unit(&mut plan, &mut rng, c, k, spacing, depth, path, gap, beta, head, centre_frac, frame.equivalent / (units as f64).sqrt(), &on, if u==0 {entries.as_slice()}else{&[]}, None, wobble);
+                if u > 0 {
+                    plan.paths.push(vec![frame.centre, lerp(frame.centre, c, 0.5), c]);
+                }
+            }
+        }
+    }
+    // Open ground between and around the dwellings: a jittered grid of
+    // open sites, kept off the dwellings, the centre grounds and the paths,
+    // so every household's cell is the size of its yard.
+    let (minx, miny, maxx, maxy) = plan.sites.iter().fold((f64::MAX, f64::MAX, f64::MIN, f64::MIN), |b, s| (b.0.min(s.p.x), b.1.min(s.p.y), b.2.max(s.p.x), b.3.max(s.p.y)));
+    let g = 1.1 * spacing.max(depth);
+    let margin = 3.0 * g;
+    let filled: Vec<Point> = plan.sites.iter().map(|s| s.p).collect();
+    let clear = 0.5 * depth + path;
+    // Open sites merge by coarse square into a few open tiles: open ground
+    // is common land, not one parcel (and one footpath) per gap.
+    let chunk = 5.0 * g;
+    let mut open_groups: std::collections::HashMap<(i64, i64), usize> = std::collections::HashMap::new();
+    let mut open_site = |plan: &mut Plan, q: Point, size: f64| {
+        let key = ((q.x / size).floor() as i64, (q.y / size).floor() as i64 + (1 << 40) * i64::from(size > chunk));
+        let next = plan.groups;
+        let group = *open_groups.entry(key).or_insert(next);
+        if group == next {
+            plan.groups += 1;
+        }
+        plan.sites.push(Site { p: q, hold: Hold::Open, group, nominal: 0.0 });
+    };
+    let mut y = miny - margin;
+    while y <= maxy + margin {
+        let mut x = minx - margin;
+        while x <= maxx + margin {
+            let q = Point { x: x + rng.range(-0.3, 0.3) * g, y: y + rng.range(-0.3, 0.3) * g };
+            if !figures.is_empty() && !figures.iter().any(|&(c, r)| length(sub(q, c)) <= r + margin) {
+                x += g;
+                continue;
+            }
+            if !filled.iter().any(|&o| length(sub(o, q)) < 0.85 * g) && !near_polyline(q, &plan.paths, clear) {
+                open_site(&mut plan, q, chunk);
+            }
+            x += g;
+        }
+        y += g;
+    }
+    // Far ground: a coarse grid out to the camp's land.
+    // At most ~40 × 40 far sites whatever the land's extent.
+    let far_step = (6.0 * g).max(frame.reach / 20.0);
+    let reach = frame.reach + far_step;
+    let mut y = frame.centre.y - reach;
+    while y <= frame.centre.y + reach {
+        let mut x = frame.centre.x - reach;
+        while x <= frame.centre.x + reach {
+            let q = Point { x, y };
+            if figures.is_empty() {
+                if q.x < minx - margin - 0.5 * g || q.x > maxx + margin + 0.5 * g || q.y < miny - margin - 0.5 * g || q.y > maxy + margin + 0.5 * g {
+                    open_site(&mut plan, q, 4.0 * far_step);
+                }
+            } else if !figures.iter().any(|&(c, r)| length(sub(q, c)) <= r + margin + 0.5 * g) {
+                open_site(&mut plan, q, 12.0 * far_step);
+            }
+            x += far_step;
+        }
+        y += far_step;
+    }
+    // Tessellation: one convex cell per site, merged per group.
+    let far = 2.0 * frame.reach + 100.0;
+    let square = [
+        Point { x: frame.centre.x - far, y: frame.centre.y - far },
+        Point { x: frame.centre.x + far, y: frame.centre.y - far },
+        Point { x: frame.centre.x + far, y: frame.centre.y + far },
+        Point { x: frame.centre.x - far, y: frame.centre.y + far },
+    ];
+    let points: Vec<Point> = plan.sites.iter().map(|s| s.p).collect();
+    let grid = Grid::new(&points, g);
+    let mut scratch = Vec::new();
+    let mut by_group: Vec<Vec<Shape>> = vec![vec![]; plan.groups];
+    for i in 0..points.len() {
+        let outer = cell(&points, i, &square, &grid, &mut scratch);
+        if outer.len() >= 3 {
+            by_group[plan.sites[i].group].push(Shape { outer, holes: vec![] });
+        }
+    }
+    let mut meta: Vec<Option<(Hold, f64)>> = vec![None; plan.groups];
+    for s in &plan.sites {
+        meta[s.group] = Some((s.hold, s.nominal));
+    }
+    let mut tiles = vec![];
+    for (g, shapes) in by_group.into_iter().enumerate() {
+        let Some((hold, nominal)) = meta[g] else { continue };
+        let merged = if shapes.len() > 1 { union(&shapes) } else { shapes };
+        for shape in merged {
+            tiles.push(Tile { shape, hold, nominal, cut: true });
+        }
+    }
+    let paths: Vec<Shape> = plan.paths.iter().filter(|l| l.len() >= 2).flat_map(|l| ribbon(l, &[path])).collect();
+    (tiles, paths)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::super::super::geometry::rectangle;
+    use super::*;
+
+    fn layout(shape: &Shape) -> Layout {
+        serde_json::from_value(serde_json::json!({
+            "key": "camp-form-test", "culture": "kraal", "center": {"x": 0.0, "y": 0.0},
+            "quarters": [], "streets": [{"path": [{"x": -300.0, "y": -150.0}, {"x": 300.0, "y": -150.0}],
+                "widths": [6.0, 6.0], "rank": 0, "role": "regional"}],
+            "blocks": [{"shape": shape, "quarter": 0, "kind": "block", "axis": {"x": 1.0, "y": 0.0}, "zone": "village"}],
+            "warnings": []
+        }))
+        .unwrap()
+    }
+
+    /// Invariant: a figure camp partitions its block exactly, lodges its
+    /// dwellings in cells of a household's size, and stays fast.
+    #[test]
+    fn horseshoe_camp_partitions_its_block_into_household_cells() {
+        let shape = rectangle(-140.0, -146.0, 140.0, 140.0);
+        let l = layout(&shape);
+        let mut fronts = contacts::street_contacts(&shape, &l, &FrontageIndex::new(&l));
+        let morph = Morph {
+            value: serde_json::json!({"campLayout":"ring","campForm":"horseshoe","campRow":9.5,"campArc":[9.0,10.5],
+                "campPath":2.5,"campGap":50.0,"campCentre":0.3,"campHead":"back","campCentreUse":"byre","campUnitMax":40}),
+        };
+        let t0 = std::time::Instant::now();
+        let lots = super::super::lots(&shape, 0, Point { x: 1.0, y: 0.0 }, &mut fronts, &morph, &l);
+        let ms = t0.elapsed().as_millis();
+        let total: f64 = lots.iter().map(|p| area(&p.shape)).sum();
+        assert!((total - area(&shape)).abs() < 1e-3 * area(&shape), "{total} vs {}", area(&shape));
+        let huts: Vec<_> = lots.iter().filter(|p| p.use_kind == "plot").collect();
+        assert!(huts.len() >= 20, "{}", huts.len());
+        assert!(ms < 10_000, "{ms} ms"); // wide margin: the suite runs at opt 1 on all cores
+    }
+
+    fn grown(form: &str, clusters: bool, n: usize, extra: serde_json::Value) -> (Plan, Vec<(Point, f64)>, Frame, Layout) {
+        let shape = rectangle(-700.0, -700.0, 700.0, 700.0);
+        let l = layout(&shape);
+        let frame = Frame::of(&l);
+        let mut value = serde_json::json!({"campLayout":"ring","campForm":form,"campRow":9.5,"campArc":[9.0,10.5],
+            "campPath":2.5,"campGap":50.0,"campCentre":0.3,"campHead":"back","campOpening":"road"});
+        for (k, v) in extra.as_object().unwrap() {
+            value[k] = v.clone();
+        }
+        let morph = Morph { value };
+        let mut plan = Plan { sites: vec![], paths: vec![], groups: 0 };
+        let mut rng = Rng::new("grown-camp-test");
+        let on = |p: Point| on_land(&l, p);
+        let roads = roads(&l);
+        let beta = opening(&frame, &morph, &l);
+        let figures = if form == "court" {
+            grown_court(&mut plan, &mut rng, &frame, &morph, n, 10.5, 3.5, beta, clusters, 1.0, &on, &[], &roads)
+        } else {
+            grown_rings(&mut plan, &mut rng, &frame, &morph, n, beta, clusters, 1.0, &on, &[], &roads, 1.0)
+        };
+        (plan, figures, frame, l)
+    }
+    fn homes(plan: &Plan) -> Vec<Point> {
+        plan.sites.iter().filter(|s| matches!(s.hold, Hold::Dwelling | Hold::Head)).map(|s| s.p).collect()
+    }
+
+    /// Invariant (`campGrowth` concentric): every household lodged, the first
+    /// ring capped, the rest on several full rows around it.
+    #[test]
+    fn a_concentric_camp_lodges_everyone_on_capped_rows() {
+        let (plan, figures, frame, _) = grown("horseshoe", false, 200, serde_json::json!({}));
+        let homes = homes(&plan);
+        assert_eq!(homes.len(), 200);
+        assert_eq!(figures.len(), 1);
+        let d: Vec<f64> = homes.iter().map(|&p| length(sub(p, frame.centre))).collect();
+        let inner = d.iter().copied().fold(f64::MAX, f64::min);
+        let outer = d.iter().copied().fold(0.0, f64::max);
+        // The default figure would lay one ring of radius ~360 m.
+        assert!(outer < 200.0, "outer {outer}");
+        assert!((outer - inner) / (9.5 + 2.5) >= 2.0, "rows {inner}..{outer}");
+    }
+
+    /// Invariant (`campGrowth` clusters): daughter camps of at most
+    /// `campUnitMax` dwellings, on the land, clear of each other and of the
+    /// road, each joined by a footpath to the first camp; every household lodged.
+    #[test]
+    fn a_clustered_camp_founds_daughters_on_land_linked_by_paths() {
+        let (plan, figures, _, l) = grown("horseshoe", true, 200, serde_json::json!({"campUnitMax": 60}));
+        assert_eq!(homes(&plan).len(), 200);
+        assert_eq!(figures.len(), 4, "{figures:?}");
+        for (i, &(a, ra)) in figures.iter().enumerate() {
+            assert!(on_land(&l, a));
+            for &(b, rb) in &figures[i + 1..] {
+                assert!(length(sub(a, b)) >= ra + rb, "figures overlap");
+            }
+            if i > 0 {
+                let (c0, r0) = figures[0];
+                let linked = plan.paths.iter().any(|w| w.iter().any(|&p| length(sub(p, a)) <= ra + 1.0)
+                    && w.iter().any(|&p| length(sub(p, c0)) <= r0 + 1.0));
+                assert!(linked, "daughter {i} not linked");
+                assert!(!roads(&l).iter().any(|&(p, q)| crate::urban::geometry::distance(a, p, q).0 < ra));
+            }
+        }
+    }
+
+    /// Invariant (`campGrowth` clusters, court): several ordus, each with its
+    /// head's compound, lodging the camp's tents.
+    #[test]
+    fn a_clustered_ordu_has_one_head_per_court() {
+        let (plan, figures, _, _) = grown("court", true, 240,
+            serde_json::json!({"campArc":[15.0,21.0],"campRow":10.5,"campGap":0.0,"campOpening":"south"}));
+        assert!(figures.len() >= 2, "{}", figures.len());
+        let heads = plan.sites.iter().filter(|s| s.hold == Hold::Head).map(|s| s.group).collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(heads.len(), figures.len());
+        assert!(homes(&plan).len() >= 228, "{}", homes(&plan).len());
+    }
+
+    /// A served camp must keep admitted dwellings, even when its regional
+    /// road skirts the clusters instead of crossing their internal tracks.
+    #[test]
+    fn clustered_courts_connect_to_the_road_and_keep_dwelling_plots() {
+        let shape = rectangle(-700.0, -700.0, 700.0, 700.0);
+        let mut l = layout(&shape);
+        l.culture = "mongol-ordu".into();
+        l.streets[0].path = vec![Point { x: -900.0, y: -703.0 }, Point { x: 900.0, y: -703.0 }];
+        l.config = Some(super::super::super::super::LayoutConfig {
+            camp_growth: "clusters".into(), ..Default::default()
+        });
+        l.programme = Some(serde_json::from_value(serde_json::json!({
+            "version": 1, "population": 1500, "context": {}, "cultures": [],
+            "demands": [{"id":"domestic", "function":"domestic", "unit":"domesticUnits",
+                "requested":273.0, "targetArea":19110.0, "targetFrontage":4.0,
+                "provenance":[], "requires":[], "parcelCapacity":0.0, "builtCapacity":0.0,
+                "deficit":273.0, "reasons":[]}],
+            "reservations":[], "allocations":[], "adjacency":[], "environment":[],
+            "reconciliationPasses":0, "warnings":[]
+        })).unwrap());
+        let morph = Morph { value: crate::urban::catalogue()["presets"]["mongol-ordu/village"]["params"].clone() };
+        let index = FrontageIndex::new(&l);
+        let native = |p: &Shape| contacts::street_contacts(p, &l, &index);
+        let mut fronts = native(&shape);
+        assert!(!fronts.is_empty(), "the block has a real regional kerb");
+        let plan = tiles(&Frame::of(&l), &morph, &l);
+        let mut cells = assemble_with_contacts(&shape, 0, l.blocks[0].axis, &mut fronts, &morph, &plan.into(), native);
+        assert!(fronts.iter().any(|f| f.shared && f.gate), "internal tracks must actually reach the road");
+        let mapping = crate::urban::culture::contextual_mapping("mongol-ordu", "", "village", morph.text("plotOp"), "domestic").unwrap();
+        let fallback = compact_fallback(&mapping.architecture_pack, "", &mapping.admissibility);
+        let mut admission = mapping.admissibility;
+        admission.shared_access = true;
+        let family = families::family(morph.text("plotOp"));
+        qualify(&mut cells, &fronts, &l, &admission, fallback.as_ref(), family == "courtyard", family, None, false, 0.0);
+        let dwellings = cells.iter().filter(|p| p.use_kind == "plot" && p.envelope.is_some()
+            && p.access.as_ref().is_some_and(|a| matches!(a.kind.as_str(), "public" | "collective"))
+            && p.provenance.iter().any(|s| matches!(s.as_str(), "camp-dwelling" | "camp-head"))).count();
+        assert!(dwellings > 0, "a road-served camp cannot become only gardens");
+        eprintln!("clustered mongol-ordu/1500: {dwellings} admitted dwelling plots");
+    }
+
+    /// The default growth stays out of a serialized configuration (saved
+    /// scenes and memo keys unchanged); a chosen one round-trips.
+    #[test]
+    fn camp_growth_is_absent_from_a_default_config() {
+        let v = serde_json::to_value(crate::urban::LayoutConfig::default()).unwrap();
+        assert!(v.get("campGrowth").is_none());
+        let c: crate::urban::LayoutConfig = serde_json::from_value(serde_json::json!({"campGrowth": "clusters"})).unwrap();
+        assert_eq!(c.camp_growth, "clusters");
+    }
+}

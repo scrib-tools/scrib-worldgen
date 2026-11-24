@@ -8,6 +8,8 @@ use settle::{Recipe, prepare, run_culture};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+mod common;
+
 const CELL_M: f64 = 5.0;
 const SIDE_CELLS: usize = 480;
 const ORIGIN_M: [f64; 2] = [10_000.0, 20_000.0];
@@ -119,4 +121,11 @@ fn river_town_builds_both_banks_stays_dry_and_is_deterministic() {
 
     let again = settle::run::layout_json(&site, &recipe, &prepared, &run).unwrap();
     assert!(written == again, "two runs with seed {} differ", recipe.seed.value);
+
+    // PL-0: lots.json, one entry per parcel, footprints inside their lots, same seed = same bytes.
+    let lots_written = std::fs::read_to_string(out.join(CULTURE).join("lots.json")).unwrap();
+    let with = common::check_lots(&lots_written, &run.partition, CULTURE);
+    assert!(with > 0, "no lot carries a building footprint");
+    let lots_again = settle::lots::lots_json(&settle::lots::lots(&site, &recipe.seed.value, &prepared, &run).file).unwrap();
+    assert!(lots_written == lots_again, "lots.json of two runs with seed {} differ", recipe.seed.value);
 }

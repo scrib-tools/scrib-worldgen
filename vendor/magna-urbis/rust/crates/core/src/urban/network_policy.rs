@@ -1,0 +1,1051 @@
+//! Local road invariants. Spatial buckets and bounded neighbourhoods keep the
+//! work proportional to road length; rejected harbour decks use bounded local routes.
+use super::analysis::Graph;
+use super::bridge_construction::deck_landing_grade;
+use super::junctions::planarize;
+use super::parallel::MIN_LAND;
+use super::spatial::{EPS, Key, distance, key, lerp};
+use super::street::{CROSSINGS, private, protected, width};
+use crate::urban::{Layout, Point, Street, Surface, geometry as g, profile::Lap, routing};
+use std::collections::{BTreeMap, BTreeSet};
+
+const CELL: f64 = 32.0;
+
+/// Segment buckets visited along the line, rather than its rectangular area.
+#[derive(Default)]
+struct Near {
+    lines: Vec<(Point, Point)>,
+    cells: std::collections::HashMap<Key, Vec<usize>>,
+}
+impl Near {
+    fn add(&mut self, a: Point, b: Point) {
+        let id = self.lines.len();
+        self.lines.push((a, b));
+        let n = (distance(a, b) / (CELL * 0.5)).ceil().max(1.0) as usize;
+        let mut visited: Vec<Key> = vec![];
+        for i in 0..=n {
+            let p = lerp(a, b, i as f64 / n as f64);
+            let k = ((p.x / CELL).floor() as i64, (p.y / CELL).floor() as i64);
+            if !visited.contains(&k) {
+                visited.push(k);
+                self.cells.entry(k).or_default().push(id);
+            }
+        }
+    }
+    /// Whether some line lies within `reach` of `p`: `distance(p, reach) <= reach`, stopping at the first.
+    fn within(&self, p: Point, reach: f64) -> bool {
+        let (x, y) = ((p.x / CELL).floor() as i64, (p.y / CELL).floor() as i64);
+        let n = (reach / CELL).ceil() as i64 + 1;
+        (-n..=n).any(|dx| (-n..=n).any(|dy| {
+            self.cells.get(&(x + dx, y + dy)).into_iter().flatten().any(|&i| {
+                let (a, b) = self.lines[i];
+                g::distance(p, a, b).0 <= reach
+            })
+        }))
+    }
+    fn distance(&self, p: Point, reach: f64) -> f64 {
+        let (x, y) = ((p.x / CELL).floor() as i64, (p.y / CELL).floor() as i64);
+        let n = (reach / CELL).ceil() as i64 + 1;
+        let mut best = f64::INFINITY;
+        for dx in -n..=n {
+            for dy in -n..=n {
+                for &i in self.cells.get(&(x + dx, y + dy)).into_iter().flatten() {
+                    let (a, b) = self.lines[i];
+                    best = best.min(g::distance(p, a, b).0);
+                }
+            }
+        }
+        best
+    }
+}
+
+fn remove_edges(streets: &mut Vec<Street>, gone: &BTreeSet<(usize, usize)>) {
+    if gone.is_empty() {
+        return;
+    }
+    let before = Graph::new(streets);
+    let land: std::collections::HashSet<_> = streets
+        .iter()
+        .filter(|s| !matches!(s.role.as_str(), "bridge" | "ford" | "causeway"))
+        .flat_map(|s| s.path.iter().copied().map(key))
+        .collect();
+    let spans: Vec<_> = streets
+        .iter()
+        .filter(|s| matches!(s.role.as_str(), "bridge" | "ford" | "causeway"))
+        .cloned()
+        .collect();
+    let crossings = Graph::new(&spans);
+    let supported: BTreeSet<_> = land
+        .iter()
+        .filter_map(|p| crossings.component.get(p).copied())
+        .collect();
+    let mut out = vec![];
+    for (i, s) in streets.iter().enumerate() {
+        // Selection has already committed supported crossings. Cosmetic
+        // pruning cannot overrule it, even if another crossing exists.
+        // An unattached imported deck can still be rejected.
+        let crossing = matches!(s.role.as_str(), "bridge" | "ford" | "causeway")
+            && s.path.iter().any(|&p| {
+                crossings.component.get(&key(p)).is_some_and(|c| supported.contains(c))
+            });
+        let mut path = vec![];
+        let mut widths = vec![];
+        for j in 0..s.path.len().saturating_sub(1) {
+            if gone.contains(&(i, j)) && !crossing {
+                if path.len() >= 2 {
+                    out.push(Street {
+                        path: std::mem::take(&mut path),
+                        widths: std::mem::take(&mut widths),
+                        rank: s.rank,
+                        role: s.role.clone(),
+                    });
+                }
+            } else {
+                if path.is_empty() {
+                    path.push(s.path[j]);
+                    widths.push(width(s, j));
+                }
+                path.push(s.path[j + 1]);
+                widths.push(width(s, j + 1));
+            }
+        }
+        if path.len() >= 2 {
+            out.push(Street {
+                path,
+                widths,
+                rank: s.rank,
+                role: s.role.clone(),
+            });
+        }
+    }
+    // Whole empty components and terminal tails may disappear. Every vertex
+    // that survives from one original component must still reach every other
+    // surviving vertex in it, including the land routes to both bridge banks.
+    let after = Graph::new(&out);
+    let mut retained = BTreeMap::new();
+    for (p, &component) in &after.component {
+        if retained
+            .insert(before.component[p], component)
+            .is_some_and(|previous| previous != component)
+        {
+            return;
+        }
+    }
+    *streets = out;
+}
+
+/// A selected-out bridge must not leave its unoccupied approaches as a fan
+/// on the bank. Peel only unserved terminal edges, preserving all actual
+/// waterfront purposes, rural tracks, private access and occupied frontage.
+pub(super) fn river_spurs(layout: &mut Layout, surface: Surface<'_>) {
+    if layout
+        .config
+        .as_ref()
+        .is_some_and(|c| c.programme.intent == "isolated-mill")
+    {
+        return;
+    }
+    if !layout
+        .streets
+        .iter()
+        .any(|s| s.path.iter().any(|&p| near_water(surface, p)))
+    {
+        return;
+    }
+    let mut laps = Lap::new("river_spurs");
+    let mut purposes = Near::default();
+    let mut frontage = Near::default();
+    for s in &layout.streets {
+        if CROSSINGS.contains(&s.role.as_str())
+            || matches!(s.role.as_str(), "mill" | "track" | "trail")
+            || private(s)
+        {
+            for w in s.path.windows(2) {
+                purposes.add(w[0], w[1]);
+            }
+        }
+    }
+    for b in layout.blocks.iter().filter(|b| b.kind == "block") {
+        for (&a, &b) in b
+            .shape
+            .outer
+            .iter()
+            .zip(b.shape.outer.iter().cycle().skip(1))
+            .take(b.shape.outer.len())
+        {
+            frontage.add(a, b);
+        }
+    }
+    laps.lap("near");
+    // Sample the existing trajectories so that an occupied head can keep its
+    // frontage while only the empty tail disappears. Widths follow the samples.
+    for s in &mut layout.streets {
+        let mut path = vec![];
+        let mut widths = vec![];
+        for (i, w) in s.path.windows(2).enumerate() {
+            let n = (distance(w[0], w[1]) / 8.0).ceil().max(1.0) as usize;
+            for k in 0..n {
+                let t = k as f64 / n as f64;
+                path.push(lerp(w[0], w[1], t));
+                widths.push(width(s, i) + (width(s, i + 1) - width(s, i)) * t);
+            }
+        }
+        if let Some(&p) = s.path.last() {
+            path.push(p);
+            widths.push(width(s, s.path.len() - 1));
+        }
+        s.path = path;
+        s.widths = widths;
+    }
+    laps.lap("sample");
+    struct Edge {
+        street: usize,
+        offset: usize,
+        a: Key,
+        b: Key,
+        removable: bool,
+    }
+    // Whether each piece of a street may go: its three samples keep off the
+    // occupied frontage. Independent per street, so measured in parallel.
+    let removable = crate::urban::par::map(&layout.streets, |_, s| {
+        let can = !CROSSINGS.contains(&s.role.as_str())
+            && !private(s)
+            && !matches!(
+                s.role.as_str(),
+                "regional" | "outbound" | "track" | "trail" | "mill"
+            );
+        s.path.windows(2).enumerate().map(|(j, w)| {
+            if !can || key(w[0]) == key(w[1]) {
+                return false;
+            }
+            let reach = width(s, j).max(width(s, j + 1)) * 0.5 + 8.0;
+            [w[0], lerp(w[0], w[1], 0.5), w[1]].iter().all(|&p| !frontage.within(p, reach))
+        }).collect::<Vec<bool>>()
+    });
+    laps.lap("removable");
+    let mut edges = vec![];
+    let mut incident: BTreeMap<Key, Vec<usize>> = BTreeMap::new();
+    let mut points = BTreeMap::new();
+    for (i, s) in layout.streets.iter().enumerate() {
+        for (j, w) in s.path.windows(2).enumerate() {
+            let (a, b) = (key(w[0]), key(w[1]));
+            if a == b {
+                continue;
+            }
+            let removable = removable[i][j];
+            let id = edges.len();
+            edges.push(Edge {
+                street: i,
+                offset: j,
+                a,
+                b,
+                removable,
+            });
+            incident.entry(a).or_default().push(id);
+            incident.entry(b).or_default().push(id);
+            points.insert(a, w[0]);
+            points.insert(b, w[1]);
+        }
+    }
+    laps.lap("edges");
+    let mut degree: BTreeMap<_, _> = incident.iter().map(|(&p, e)| (p, e.len())).collect();
+    let points: Vec<(Key, Point)> = points.into_iter().collect();
+    let starts = crate::urban::par::map(&points, |_, (_, p)| near_water(surface, *p) && !purposes.within(*p, 12.0));
+    let mut queue: Vec<_> = points.iter().zip(starts).filter(|(_, start)| *start).map(|((p, _), _)| (*p, true)).collect();
+    laps.lap("queue");
+    let mut alive = vec![true; edges.len()];
+    let mut gone = BTreeSet::new();
+    while let Some((p, bank)) = queue.pop() {
+        if !bank && degree[&p] != 1 {
+            continue;
+        }
+        for &i in &incident[&p] {
+            let e = &edges[i];
+            if !alive[i] || !e.removable {
+                continue;
+            }
+            alive[i] = false;
+            gone.insert((e.street, e.offset));
+            *degree.get_mut(&e.a).unwrap() -= 1;
+            *degree.get_mut(&e.b).unwrap() -= 1;
+            queue.push((if e.a == p { e.b } else { e.a }, false));
+        }
+    }
+    laps.lap("peel");
+    remove_edges(&mut layout.streets, &gone);
+    laps.lap("remove");
+}
+
+fn near_water(surface: Surface<'_>, p: Point) -> bool {
+    surface.wet(p)
+        || (0..8).any(|i| {
+            let a = i as f64 * std::f64::consts::FRAC_PI_4;
+            surface.wet(Point {
+                x: p.x + 8.0 * a.cos(),
+                y: p.y + 8.0 * a.sin(),
+            })
+        })
+}
+
+/// Delete only a redundant third edge of a small triangle. The other two
+/// edges must still exist, so this can never disconnect the street graph.
+/// Planned grids reject small diagonal cells; other tissues lose only slivers
+/// narrower than a usable frontage. Crossings and access ways are immutable.
+pub(super) fn small_loops(streets: &mut Vec<Street>, grid: bool) {
+    let max_edge = if grid { 100.0 } else { 60.0 };
+    let mut pairs: Vec<(Key, Key)> = vec![];
+    let mut edges: std::collections::HashMap<(Key, Key), (usize, usize)> = Default::default();
+    let mut points: std::collections::HashMap<Key, Point> = Default::default();
+    for (i, s) in streets.iter().enumerate() {
+        for (j, w) in s.path.windows(2).enumerate() {
+            let (a, b) = (key(w[0]), key(w[1]));
+            if a == b || distance(w[0], w[1]) > max_edge {
+                continue;
+            }
+            pairs.push((a, b));
+            pairs.push((b, a));
+            edges.insert(if a < b { (a, b) } else { (b, a) }, (i, j));
+            points.insert(a, w[0]);
+            points.insert(b, w[1]);
+        }
+    }
+    // Neighbours of each point, built from the sorted links at once.
+    pairs.sort_unstable();
+    pairs.dedup();
+    let mut n = 0;
+    let mut grouped = vec![];
+    while n < pairs.len() {
+        let a = pairs[n].0;
+        let m = n + pairs[n..].iter().take_while(|p| p.0 == a).count();
+        grouped.push((a, pairs[n..m].iter().map(|p| p.1).collect::<BTreeSet<Key>>()));
+        n = m;
+    }
+    let links: BTreeMap<Key, BTreeSet<Key>> = grouped.into_iter().collect();
+    let edge = |a: Key, b: Key| if a < b { (a, b) } else { (b, a) };
+    let mut gone = BTreeSet::new();
+    for (&a, neighbors) in &links {
+        if neighbors.len() > 16 {
+            continue;
+        }
+        for &b in neighbors.range(a..) {
+            if links[&b].len() > 16 {
+                continue;
+            }
+            for &c in neighbors.intersection(&links[&b]).filter(|&&c| c > b) {
+                let sides = [edges[&edge(a, b)], edges[&edge(a, c)], edges[&edge(b, c)]];
+                if sides.iter().any(|s| gone.contains(s)) {
+                    continue;
+                }
+                let (p, q, r) = (points[&a], points[&b], points[&c]);
+                let twice_area = ((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x)).abs();
+                let longest = distance(p, q).max(distance(p, r)).max(distance(q, r));
+                let widest = sides
+                    .iter()
+                    .map(|&(i, j)| width(&streets[i], j))
+                    .fold(0.0, f64::max);
+                if twice_area > 2.0 * if grid { 900.0 } else { 180.0 }
+                    || !grid && twice_area / longest.max(EPS) > widest + MIN_LAND
+                {
+                    continue;
+                }
+                let candidate = sides
+                    .into_iter()
+                    .filter(|&(i, _)| {
+                        let s = &streets[i];
+                        !protected(s)
+                            && !private(s)
+                            && !CROSSINGS.contains(&s.role.as_str())
+                            && !matches!(s.role.as_str(), "track" | "trail")
+                    })
+                    .max_by(|&(i, j), &(k, l)| {
+                        streets[i]
+                            .rank
+                            .cmp(&streets[k].rank)
+                            .then_with(|| {
+                                distance(streets[i].path[j], streets[i].path[j + 1]).total_cmp(
+                                    &distance(streets[k].path[l], streets[k].path[l + 1]),
+                                )
+                            })
+                            .then(i.cmp(&k))
+                            .then(j.cmp(&l))
+                    });
+                if let Some(s) = candidate {
+                    gone.insert(s);
+                }
+            }
+        }
+    }
+    remove_edges(streets, &gone);
+}
+
+/// `roadNetworkPrune`: whether an ordinary street still ends on a bank (within
+/// 16 m of water) after the bridge choice, i.e. whether the door-based
+/// bridgehead pass has anything to settle. Crossing structures, quays and
+/// private ways are not loose ends.
+pub(in crate::urban) fn bank_dead_ends(streets: &[Street], surface: Surface<'_>) -> bool {
+    let mut degree: BTreeMap<Key, usize> = BTreeMap::new();
+    for s in streets {
+        for w in s.path.windows(2) {
+            if key(w[0]) != key(w[1]) {
+                *degree.entry(key(w[0])).or_default() += 1;
+                *degree.entry(key(w[1])).or_default() += 1;
+            }
+        }
+    }
+    let bank = |p: Point| {
+        surface.wet(p)
+            || [8.0, 16.0].iter().any(|&r| {
+                (0..8).any(|i| {
+                    let a = i as f64 * std::f64::consts::FRAC_PI_4;
+                    surface.wet(Point { x: p.x + r * a.cos(), y: p.y + r * a.sin() })
+                })
+            })
+    };
+    streets
+        .iter()
+        .filter(|s| s.path.len() >= 2 && !CROSSINGS.contains(&s.role.as_str()) && !private(s))
+        .flat_map(|s| [s.path[0], *s.path.last().unwrap()])
+        .any(|p| degree.get(&key(p)).copied().unwrap_or(0) == 1 && bank(p))
+}
+
+/// `roadNetworkPrune`: three nearly straight junction-to-junction runs that
+/// close a small triangle (a diagonal shortcut cutting the corner of two
+/// streets), or two nearly straight runs doubling each other between the same
+/// junctions, lose a run: the triangle its longest side (the diagonal) when
+/// that is no more important than the other two, the double its least
+/// important (then longest) run. Runs follow the street graph through plain
+/// vertices, so a side split by a street joint is still one side. A run goes
+/// only when both its junctions keep at least two ways (no new dead end),
+/// and `remove_edges` refuses any change that would split a
+/// component. Crossings, access ways, tracks and protected roads stay.
+/// Grids use larger cells (a diagonal across a planned block); other tissues
+/// only lose tight tangles of short links.
+pub(in crate::urban) fn junction_triangles(streets: &mut Vec<Street>, grid: bool) {
+    let (max_side, max_area) = if grid { (200.0, 8000.0) } else { (90.0, 1600.0) };
+    const STRAIGHT: f64 = 1.15;
+    struct Run {
+        a: Key,
+        b: Key,
+        segments: Vec<(usize, usize)>,
+        length: f64,
+        chord: f64,
+        rank: usize,
+        removable: bool,
+    }
+    let mut incident: BTreeMap<Key, Vec<(usize, usize)>> = BTreeMap::new();
+    let mut points: BTreeMap<Key, Point> = BTreeMap::new();
+    for (i, s) in streets.iter().enumerate() {
+        for (j, w) in s.path.windows(2).enumerate() {
+            let (a, b) = (key(w[0]), key(w[1]));
+            if a == b {
+                continue;
+            }
+            incident.entry(a).or_default().push((i, j));
+            incident.entry(b).or_default().push((i, j));
+            points.insert(a, w[0]);
+            points.insert(b, w[1]);
+        }
+    }
+    let ends = |(i, j): (usize, usize)| (key(streets[i].path[j]), key(streets[i].path[j + 1]));
+    let removable = |s: &Street| {
+        !protected(s)
+            && !private(s)
+            && !CROSSINGS.contains(&s.role.as_str())
+            && !matches!(s.role.as_str(), "track" | "trail" | "mill")
+    };
+    // Walk every run from a junction (degree other than 2) to the next one.
+    let mut runs: Vec<Run> = vec![];
+    let mut visited: BTreeSet<(usize, usize)> = BTreeSet::new();
+    for (&start, list) in &incident {
+        if list.len() == 2 {
+            continue;
+        }
+        for &first in list {
+            if visited.contains(&first) {
+                continue;
+            }
+            let mut segments = vec![];
+            let (mut at, mut edge) = (start, first);
+            loop {
+                visited.insert(edge);
+                segments.push(edge);
+                let (p, q) = ends(edge);
+                at = if p == at { q } else { p };
+                let next = &incident[&at];
+                if next.len() != 2 || at == start {
+                    break;
+                }
+                let Some(&other) = next.iter().find(|&&e| e != edge && !visited.contains(&e)) else { break };
+                edge = other;
+            }
+            if at == start {
+                continue;
+            }
+            let length = segments
+                .iter()
+                .map(|&(i, j)| distance(streets[i].path[j], streets[i].path[j + 1]))
+                .sum();
+            runs.push(Run {
+                a: start.min(at),
+                b: start.max(at),
+                chord: distance(points[&start], points[&at]),
+                rank: segments.iter().map(|&(i, _)| streets[i].rank).max().unwrap_or(0),
+                removable: segments.iter().all(|&(i, _)| removable(&streets[i])),
+                segments,
+                length,
+            });
+        }
+    }
+    let mut degree: BTreeMap<Key, usize> = incident.iter().map(|(&k, v)| (k, v.len())).collect();
+    let mut by_pair: BTreeMap<(Key, Key), Vec<usize>> = BTreeMap::new();
+    let mut links: BTreeMap<Key, BTreeSet<Key>> = BTreeMap::new();
+    for (r, run) in runs.iter().enumerate() {
+        if run.length > run.chord * STRAIGHT + 1.0 || run.chord > max_side {
+            continue;
+        }
+        by_pair.entry((run.a, run.b)).or_default().push(r);
+        links.entry(run.a).or_default().insert(run.b);
+        links.entry(run.b).or_default().insert(run.a);
+    }
+    let mut gone_runs: BTreeSet<usize> = BTreeSet::new();
+    let worst = |candidates: &[usize]| {
+        candidates
+            .iter()
+            .copied()
+            .filter(|&r| runs[r].removable)
+            .max_by(|&x, &y| {
+                runs[x]
+                    .rank
+                    .cmp(&runs[y].rank)
+                    .then_with(|| runs[x].length.total_cmp(&runs[y].length))
+                    .then(y.cmp(&x))
+            })
+    };
+    let cut = |r: usize, degree: &mut BTreeMap<Key, usize>, gone: &mut BTreeSet<usize>| {
+        let (a, b) = (runs[r].a, runs[r].b);
+        if degree[&a] < 3 || degree[&b] < 3 {
+            return false;
+        }
+        *degree.get_mut(&a).unwrap() -= 1;
+        *degree.get_mut(&b).unwrap() -= 1;
+        gone.insert(r);
+        true
+    };
+    // Doubled runs between the same two junctions.
+    for list in by_pair.values().filter(|l| l.len() >= 2) {
+        let mut alive: Vec<usize> = list.clone();
+        while alive.len() >= 2 {
+            let Some(r) = worst(&alive) else { break };
+            if !cut(r, &mut degree, &mut gone_runs) {
+                break;
+            }
+            alive.retain(|&x| x != r);
+        }
+    }
+    let shortest = |a: Key, b: Key, gone: &BTreeSet<usize>| {
+        by_pair
+            .get(&(a.min(b), a.max(b)))
+            .and_then(|l| l.iter().copied().filter(|r| !gone.contains(r)).min_by(|&x, &y| runs[x].length.total_cmp(&runs[y].length)))
+    };
+    for (&a, around) in &links {
+        for &b in around.range(a..) {
+            for &c in around.intersection(&links[&b]).filter(|&&c| c > b) {
+                let (Some(ab), Some(ac), Some(bc)) = (shortest(a, b, &gone_runs), shortest(a, c, &gone_runs), shortest(b, c, &gone_runs)) else { continue };
+                let (p, q, s) = (points[&a], points[&b], points[&c]);
+                let area = ((q.x - p.x) * (s.y - p.y) - (q.y - p.y) * (s.x - p.x)).abs() * 0.5;
+                if area > max_area {
+                    continue;
+                }
+                // The diagonal is the longest side; it goes only when it is
+                // no more important than the two streets whose corner it cuts.
+                let sides = [ab, ac, bc];
+                let r = sides.iter().copied().max_by(|&x, &y| runs[x].length.total_cmp(&runs[y].length).then(y.cmp(&x))).unwrap();
+                if runs[r].removable && sides.iter().all(|&o| runs[o].rank <= runs[r].rank) {
+                    cut(r, &mut degree, &mut gone_runs);
+                }
+            }
+        }
+    }
+    let gone: BTreeSet<(usize, usize)> = gone_runs.iter().flat_map(|&r| runs[r].segments.iter().copied()).collect();
+    remove_edges(streets, &gone);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{bank_dead_ends, harbour_clearance, junction_triangles, remove_edges, river_spurs, small_loops};
+    use super::super::analysis::Graph;
+    use super::super::bridge_construction::deck_landing_grade;
+    use super::super::bridge_selection::select_bridges_graded;
+    use super::super::exits::ensure_regional_access;
+    use super::super::spatial::{distance, key};
+    use crate::urban::{Layout, Point, Street, Surface, routing};
+    use std::collections::BTreeSet;
+    fn road(points: &[(f64, f64)], role: &str) -> Street {
+        Street {
+            path: points.iter().map(|&(x, y)| Point { x, y }).collect(),
+            widths: vec![4.0; points.len()],
+            rank: 2,
+            role: role.into(),
+        }
+    }
+    fn layout(streets: Vec<Street>) -> Layout {
+        let mut l: Layout = serde_json::from_value(serde_json::json!({
+            "key":"road-policy", "culture":"chinese", "center":{"x":100.,"y":100.},
+            "quarters":[],"blocks":[],"streets":[],"warnings":[]
+        }))
+        .unwrap();
+        l.streets = streets;
+        l.config = Some(Default::default());
+        l
+    }
+    fn surface<'a>(h: &'a [f32], w: &'a [u8]) -> Surface<'a> {
+        Surface {
+            geometry: None,
+            width: 400.0,
+            n: 100,
+            height: h,
+            water: w,
+            interpolation: Default::default(),
+        }
+    }
+    fn length(streets: &[Street]) -> f64 {
+        streets
+            .iter()
+            .flat_map(|s| s.path.windows(2))
+            .map(|w| distance(w[0], w[1]))
+            .sum()
+    }
+    fn grid_cells(diagonal: &str) -> Vec<Street> {
+        vec![
+            road(&[(-60., 0.), (0., 0.), (60., 0.), (120., 0.)], "street"),
+            road(&[(-60., 60.), (0., 60.), (60., 60.), (120., 60.)], "street"),
+            road(&[(0., -60.), (0., 0.), (0., 60.), (0., 120.)], "street"),
+            road(&[(60., -60.), (60., 0.), (60., 60.), (60., 120.)], "street"),
+            road(&[(0., 0.), (60., 60.)], diagonal),
+        ]
+    }
+    #[test]
+    fn grid_diagonal_closing_two_triangles_goes_and_the_grid_stays_connected() {
+        let mut streets = grid_cells("street");
+        let grid = length(&streets) - 60. * 2f64.sqrt();
+        junction_triangles(&mut streets, true);
+        assert!((length(&streets) - grid).abs() < 1e-6, "diagonal remains: {streets:?}");
+        assert_eq!(Graph::new(&streets).length.len(), 1);
+        let before = serde_json::to_vec(&streets).unwrap();
+        junction_triangles(&mut streets, true);
+        assert_eq!(serde_json::to_vec(&streets).unwrap(), before);
+        // Organic tissue keeps a cell of this size; a protected road always stays.
+        let mut organic = grid_cells("street");
+        let all = length(&organic);
+        junction_triangles(&mut organic, false);
+        assert!((length(&organic) - all).abs() < 1e-6);
+        let mut regional = grid_cells("regional");
+        junction_triangles(&mut regional, true);
+        assert!((length(&regional) - all).abs() < 1e-6);
+        // A lone triangle has no spare way at its corners: nothing goes.
+        let mut lone = vec![
+            road(&[(20., 20.), (50., 20.)], "street"),
+            road(&[(50., 20.), (50., 50.)], "street"),
+            road(&[(20., 20.), (50., 50.)], "street"),
+        ];
+        junction_triangles(&mut lone, true);
+        assert_eq!(lone.len(), 3);
+    }
+    #[test]
+    fn doubled_run_between_two_junctions_loses_the_longer_one() {
+        let mut streets = vec![
+            road(&[(0., 0.), (50., 0.)], "street"),
+            road(&[(0., 0.), (25., 4.), (50., 0.)], "lane"),
+            road(&[(-40., 0.), (0., 0.)], "street"),
+            road(&[(0., 0.), (0., -40.)], "street"),
+            road(&[(50., 0.), (90., 0.)], "street"),
+            road(&[(50., 0.), (50., -40.)], "street"),
+        ];
+        junction_triangles(&mut streets, false);
+        assert!(streets.iter().all(|s| s.role != "lane"), "double remains: {streets:?}");
+        assert_eq!(Graph::new(&streets).length.len(), 1);
+    }
+    #[test]
+    fn loose_street_end_on_a_bank_is_detected() {
+        let h = vec![10.; 10000];
+        let water: Vec<_> = (0..10000)
+            .map(|i| if (50..55).contains(&(i % 100)) { 3 } else { 0 })
+            .collect();
+        let surf = surface(&h, &water);
+        assert!(bank_dead_ends(&[road(&[(100., 100.), (192., 100.)], "street")], surf));
+        assert!(!bank_dead_ends(&[road(&[(100., 100.), (150., 100.)], "street")], surf));
+        // A crossing landing is no loose end.
+        assert!(!bank_dead_ends(&[road(&[(192., 100.), (228., 100.)], "bridge")], surf));
+    }
+    #[test]
+    fn bank_fans_of_rejected_bridges_go_but_tracks_and_landings_stay() {
+        let h = vec![10.; 10000];
+        let water: Vec<_> = (0..10000)
+            .map(|i| if (50..55).contains(&(i % 100)) { 3 } else { 0 })
+            .collect();
+        let surf = surface(&h, &water);
+        let roads = vec![
+            road(&[(40., 100.), (196., 180.)], "approach"),
+            road(&[(40., 260.), (196., 180.)], "street"),
+        ];
+        let mut l = layout(roads.clone());
+        river_spurs(&mut l, surf);
+        assert!(l.streets.is_empty(), "bank fan remains: {:?}", l.streets);
+        let mut l = layout(vec![
+            roads[0].clone(),
+            road(&[(196., 180.), (220., 180.)], "bridge"),
+        ]);
+        river_spurs(&mut l, surf);
+        assert!((length(&l.streets) - length(&[roads[0].clone()]) - 24.).abs() < 1e-6);
+        let mut l = layout(vec![road(&[(40., 100.), (196., 180.)], "track")]);
+        let before = length(&l.streets);
+        river_spurs(&mut l, surf);
+        assert!((length(&l.streets) - before).abs() < 1e-6);
+        let mut l = layout(vec![
+            roads[0].clone(),
+            road(&[(190., 180.), (196., 180.)], "landing"),
+        ]);
+        river_spurs(&mut l, surf);
+        assert!(!l.streets.is_empty());
+    }
+    #[test]
+    fn river_tail_stops_at_occupied_frontage() {
+        let h = vec![10.; 10000];
+        let water: Vec<_> = (0..10000)
+            .map(|i| if i % 100 >= 50 { 3 } else { 0 })
+            .collect();
+        let mut l = layout(vec![road(&[(40., 100.), (196., 100.)], "street")]);
+        l.blocks = serde_json::from_value(serde_json::json!([{
+            "shape":{"outer":[{"x":40.,"y":106.},{"x":80.,"y":106.},{"x":80.,"y":125.},{"x":40.,"y":125.}],"holes":[]},
+            "kind":"block","quarter":0,"axis":{"x":1.,"y":0.}
+        }])).unwrap();
+        river_spurs(&mut l, surface(&h, &water));
+        assert!(!l.streets.is_empty());
+        assert!(l.streets.iter().flat_map(|s| &s.path).all(|p| p.x < 110.));
+    }
+    #[test]
+    fn bank_pruning_keeps_the_land_route_to_a_distant_bridge() {
+        let h = vec![10.; 10000];
+        let water: Vec<_> = (0..10000)
+            .map(|i| if (50..55).contains(&(i % 100)) { 3 } else { 0 })
+            .collect();
+        let mut l = layout(vec![
+            road(&[(40., 60.), (40., 100.)], "regional"),
+            road(&[(40., 100.), (196., 100.), (180., 140.), (196., 180.)], "street"),
+            road(&[(196., 180.), (224., 180.)], "bridge"),
+            road(&[(224., 180.), (300., 180.)], "regional"),
+        ]);
+        let before = length(&l.streets);
+        river_spurs(&mut l, surface(&h, &water));
+        assert_eq!(Graph::new(&l.streets).length.len(), 1);
+        assert!((length(&l.streets) - before).abs() < 1e-6);
+        assert_eq!(l.streets.iter().filter(|s| s.role == "bridge").count(), 1);
+    }
+    #[test]
+    fn pruning_keeps_a_supported_split_bridge_even_with_an_alternate_route() {
+        let mut streets = vec![
+            road(&[(20., 20.), (40., 20.)], "street"),
+            road(&[(40., 20.), (60., 20.)], "bridge"),
+            road(&[(60., 20.), (80., 20.)], "bridge"),
+            road(&[(80., 20.), (100., 20.)], "street"),
+            road(&[(40., 20.), (60., 50.), (80., 20.)], "street"),
+        ];
+        let before = serde_json::to_vec(&streets).unwrap();
+        remove_edges(&mut streets, &BTreeSet::from([(1, 0), (2, 0)]));
+        assert_eq!(serde_json::to_vec(&streets).unwrap(), before);
+    }
+    #[test]
+    fn small_grid_triangle_loses_only_its_diagonal_and_stays_connected() {
+        let mut streets = vec![
+            road(&[(20., 20.), (50., 20.)], "street"),
+            road(&[(50., 20.), (50., 50.)], "street"),
+            road(&[(20., 20.), (50., 50.)], "street"),
+        ];
+        small_loops(&mut streets, true);
+        assert_eq!(streets.len(), 2);
+        assert!((length(&streets) - 60.).abs() < 1e-6);
+        assert_eq!(Graph::new(&streets).length.len(), 1);
+        let before = serde_json::to_vec(&streets).unwrap();
+        small_loops(&mut streets, true);
+        assert_eq!(serde_json::to_vec(&streets).unwrap(), before);
+    }
+    #[test]
+    fn large_cells_and_crossing_triangles_keep_their_edges() {
+        let mut large = vec![
+            road(&[(0., 0.), (200., 0.)], "street"),
+            road(&[(200., 0.), (200., 200.)], "street"),
+            road(&[(0., 0.), (200., 200.)], "street"),
+        ];
+        small_loops(&mut large, true);
+        assert_eq!(large.len(), 3);
+        let mut bridges = vec![
+            road(&[(20., 20.), (40., 20.)], "bridge"),
+            road(&[(40., 20.), (40., 40.)], "causeway"),
+            road(&[(20., 20.), (40., 40.)], "track"),
+        ];
+        small_loops(&mut bridges, true);
+        assert_eq!(bridges.len(), 3);
+    }
+    #[test]
+    fn harbour_corridor_rejects_imported_decks_but_keeps_upstream_crossing() {
+        let h = vec![10.; 10000];
+        let water: Vec<_> = (0..10000)
+            .map(|i| if (50..70).contains(&(i % 100)) { 3 } else { 0 })
+            .collect();
+        let mut l = layout(vec![
+            road(&[(196., 120.), (196., 200.)], "quay"),
+            road(&[(196., 160.), (284., 160.)], "bridge"),
+            road(&[(196., 40.), (284., 40.)], "bridge"),
+        ]);
+        l.config.as_mut().unwrap().site_archetype = "harbor".into();
+        harbour_clearance(&mut l, surface(&h, &water), 10000, 0.12);
+        let bridges: Vec<_> = l.streets.iter().filter(|s| s.role == "bridge").collect();
+        assert_eq!(bridges.len(), 1);
+        assert_eq!(bridges[0].path[0].y, 40.);
+    }
+    #[test]
+    fn cove_harbour_relocates_its_crossing_inland() {
+        let h = vec![10.; 10000];
+        let water: Vec<_> = (0..10000).map(|i| {
+            let (x, y) = (i % 100, i / 100);
+            if (50..70).contains(&x) && y >= 30 { 1 }
+            else if (56..64).contains(&x) && (10..30).contains(&y) { 3 }
+            else { 0 }
+        }).collect();
+        let surf = surface(&h, &water);
+        let mut l = layout(vec![
+            road(&[(80., 160.), (196., 160.)], "regional"),
+            road(&[(196., 120.), (196., 160.), (196., 200.)], "quay"),
+            road(&[(196., 160.), (284., 160.)], "bridge"),
+            road(&[(284., 160.), (380., 160.)], "regional"),
+        ]);
+        l.config.as_mut().unwrap().site_archetype = "harbor".into();
+        let mut disabled = l.clone();
+        disabled.config.as_mut().unwrap().harbour_bridge_clearance = false;
+        select_bridges_graded(&mut disabled, 10000, surf, &[], 0.12);
+        assert!(disabled.streets.iter().any(|s| s.role == "bridge"
+            && s.path.iter().all(|p| (p.y - 160.).abs() < 0.01)));
+        select_bridges_graded(&mut l, 10000, surf, &[], 0.12);
+        let bridges: Vec<_> = l.streets.iter().filter(|s| s.role == "bridge").collect();
+        assert!(!bridges.is_empty(), "the crossing disappeared: {:?}", l.streets);
+        assert!(bridges.iter().all(|s| s.path.iter().all(|p| p.y < 120.)), "deck in front of harbour: {bridges:?}");
+        assert!(bridges.iter().all(|s| deck_landing_grade(surf, [s.path[0], *s.path.last().unwrap()]) <= 0.12));
+        assert!(l.streets.iter().filter(|s| s.role == "approach").all(|s| routing::path_clear(surf, &s.path, 0.12)));
+        let graph = Graph::new(&l.streets);
+        assert_eq!(graph.component[&key(Point { x: 80., y: 160. })], graph.component[&key(Point { x: 380., y: 160. })]);
+        // The final port pass must also retain the crossing behind the sea basin.
+        crate::urban::macroplan::harbour::protect_navigation(&mut l, surf, &[]);
+        assert!(l.streets.iter().any(|s| s.role == "bridge"));
+    }
+    #[test]
+    fn cove_harbour_clearance_leaves_non_harbour_river_streets_unchanged() {
+        let h = vec![10.; 10000];
+        let water: Vec<_> = (0..10000)
+            .map(|i| if (50..70).contains(&(i % 100)) { 3 } else { 0 })
+            .collect();
+        let mut l = layout(vec![
+            road(&[(80., 160.), (180., 160.)], "regional"),
+            road(&[(180., 160.), (196., 160.)], "causeway"),
+            road(&[(196., 120.), (196., 160.), (196., 200.)], "quay"),
+            road(&[(196., 160.), (240., 160.)], "bridge"),
+            road(&[(240., 160.), (284., 160.)], "bridge"),
+            road(&[(284., 160.), (300., 160.)], "causeway"),
+            road(&[(300., 160.), (380., 160.)], "regional"),
+        ]);
+        let before = serde_json::to_vec(&l.streets).unwrap();
+        harbour_clearance(&mut l, surface(&h, &water), 10000, 0.12);
+        assert_eq!(serde_json::to_vec(&l.streets).unwrap(), before);
+    }
+    #[test]
+    fn isolated_establishment_gets_access_and_can_disable_it() {
+        let h = vec![10.; 10000];
+        let w = vec![0; 10000];
+        let mut l = layout(vec![road(&[(200., 140.), (200., 180.)], "track")]);
+        let mut cfg = crate::urban::LayoutConfig::default();
+        cfg.programme.intent = "isolated-farm".into();
+        // The programme is prepared in the normal pipeline; an isolated intent
+        // must not suppress the common final access invariant.
+        l.config = Some(cfg.clone());
+        let roads = [road(&[(40., 20.), (40., 380.)], "regional")];
+        ensure_regional_access(&mut l, &roads, surface(&h, &w), &cfg);
+        assert_eq!(l.streets.len(), 2);
+        assert!(routing::path_clear(
+            surface(&h, &w),
+            &l.streets[1].path,
+            cfg.max_lane_grade
+        ));
+        assert!(crate::settlements::roads::RoadConfig::default().activity_access);
+    }
+}
+
+/// The wet corridor normal to each quay is the harbour's navigable approach.
+/// Even an imported regional deck must yield here. River decks upstream, away
+/// from that corridor, retain their original trajectories.
+pub(super) fn harbour_clearance(layout: &mut Layout, surface: Surface<'_>, population: u32, max_grade: f64) {
+    // Waterfront streets also occur in ordinary river towns. Their quays do
+    // not reserve a harbour basin, so neither deck grouping nor relocation
+    // may change those crossings or their bank connections.
+    if !layout.config.as_ref().is_some_and(crate::urban::macroplan::harbour::port_town) {
+        return;
+    }
+    let mut approach = Near::default();
+    for s in layout.streets.iter().filter(|s| s.role == "quay") {
+        for (j, w) in s.path.windows(2).enumerate() {
+            let length = distance(w[0], w[1]);
+            if length < EPS {
+                continue;
+            }
+            let normal = Point {
+                x: -(w[1].y - w[0].y) / length,
+                y: (w[1].x - w[0].x) / length,
+            };
+            let n = (length / 12.0).ceil().max(1.0) as usize;
+            for k in 0..=n {
+                for side in [-1.0, 1.0] {
+                    let p = lerp(w[0], w[1], k as f64 / n as f64);
+                    let reach =
+                        (width(s, j) + 2.0 * surface.width / surface.n as f64 + 8.0).max(20.0);
+                    let at = |d: f64| Point {
+                        x: p.x + side * normal.x * d,
+                        y: p.y + side * normal.y * d,
+                    };
+                    let Some(start) = (1..=reach.ceil() as usize)
+                        .map(|d| at(d as f64))
+                        .find(|&p| surface.wet(p))
+                    else {
+                        continue;
+                    };
+                    // A sea/lake basin stays open for 200 m. On a narrow river the
+                    // ray stops at the opposite bank, so upstream bridges are safe.
+                    let mut end = start;
+                    for d in 1..=100 {
+                        let q = Point {
+                            x: start.x + side * normal.x * d as f64 * 2.0,
+                            y: start.y + side * normal.y * d as f64 * 2.0,
+                        };
+                        if !surface.wet(q) {
+                            break;
+                        }
+                        end = q;
+                    }
+                    approach.add(start, end);
+                }
+            }
+        }
+    }
+    if approach.lines.is_empty() {
+        return;
+    }
+    let obstructs = |path: &[Point]| path.windows(2).any(|w| {
+        let n = (distance(w[0], w[1]) / 4.0).ceil().max(1.0) as usize;
+        (0..=n).any(|k| {
+            let p = lerp(w[0], w[1], k as f64 / n as f64);
+            surface.wet(p) && approach.distance(p, 12.0) <= 12.0
+        })
+    });
+    // Causeways also encode raised dry bank ramps and joints on quay platforms.
+    // They are bank routes, not decks across the navigable channel: grouping
+    // them with bridges would delete the very approaches relocation must keep.
+    let platforms: Vec<_> = layout.streets.iter().filter(|s| s.role == "quay")
+        .flat_map(|s| s.path.windows(2).enumerate().map(move |(i, w)|
+            (w[0], w[1], width(s, i).max(width(s, i + 1)) * 0.5 + 0.5))).collect();
+    let crossing = |s: &Street| s.path.len() >= 2 && (matches!(s.role.as_str(), "bridge" | "ford")
+        || s.role == "causeway" && s.path.windows(2).any(|w| {
+            let n = (distance(w[0], w[1]) / 2.0).ceil().max(1.0) as usize;
+            (0..=n).any(|i| {
+                let p = lerp(w[0], w[1], i as f64 / n as f64);
+                surface.wet(p) && !platforms.iter().any(|&(a, b, half)| g::distance(p, a, b).0 <= half)
+            })
+        }));
+    let spans: Vec<_> = layout.streets.iter().filter(|s| crossing(s)).cloned().collect();
+    let decks = Graph::new(&spans);
+    let rejected: BTreeSet<_> = spans.iter().filter(|s| obstructs(&s.path))
+        .map(|s| decks.component[&key(s.path[0])]).collect();
+    if rejected.is_empty() { return; }
+    // A navigation rejection overrides selection, including supported and split
+    // imported decks. Preserve their bank junctions as the relocation demand.
+    let mut requests = vec![];
+    for &c in &rejected {
+        let parts: Vec<_> = spans.iter().filter(|s| decks.component[&key(s.path[0])] == c).collect();
+        let ends: Vec<_> = parts.iter().flat_map(|s| s.path.iter().copied())
+            .filter(|&p| !surface.wet(p) && decks.degree(p) == 1).collect();
+        let pair = ends.iter().enumerate().flat_map(|(i, &a)| ends[i + 1..].iter().map(move |&b| (a, b)))
+            .max_by(|&(a, b), &(c, d)| distance(a, b).total_cmp(&distance(c, d)));
+        if let Some((a, b)) = pair {
+            let width = parts.iter().flat_map(|s| &s.widths).copied().fold(1.0, f64::max);
+            let rank = parts.iter().map(|s| s.rank).min().unwrap_or(2);
+            requests.push((a, b, width, rank));
+        }
+    }
+    layout.streets.retain(|s| !crossing(s) || !rejected.contains(&decks.component[&key(s.path[0])]));
+    let max_span = crate::urban::footprint::crossings::spans(&layout.culture, population).0;
+    for (a, b, width, rank) in requests {
+        let graph = Graph::new(&layout.streets);
+        let (Some(ca), Some(cb)) = (graph.component.get(&key(a)), graph.component.get(&key(b))) else { continue; };
+        if ca == cb { continue; }
+        let middle = routing::water_intervals(surface, a, b).into_iter()
+            .max_by(|x, y| (x.1 - x.0).total_cmp(&(y.1 - y.0)))
+            .map_or(lerp(a, b, 0.5), |(lo, hi)| lerp(a, b, (lo + hi) * 0.5));
+        let length = distance(a, b).max(EPS);
+        let normal = Point { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
+        let along = Point { x: -normal.y, y: normal.x };
+        let at = |sign: f64, d: f64| Point { x: middle.x + sign * along.x * d, y: middle.y + sign * along.y * d };
+        // The closed/narrowing end is inland; reaching the map edge through
+        // water is an open mouth. On rivers use the higher banks as upstream.
+        let inland_score = |sign: f64| {
+            let mut narrowest = 400.0_f64;
+            let mut height = 0.0_f64;
+            for i in 1..=40 {
+                let p = at(sign, i as f64 * 16.0);
+                if p.x < 0.0 || p.y < 0.0 || p.x >= surface.width || p.y >= surface.width { break; }
+                if !surface.wet(p) { return i as f64 * 16.0; }
+                // Cheap transects select the search direction before exact decks.
+                let bank = |side: f64| (1..=100).map(|k| Point {
+                    x: p.x + side * normal.x * k as f64 * 4.0,
+                    y: p.y + side * normal.y * k as f64 * 4.0,
+                }).find(|q| q.x >= 0.0 && q.y >= 0.0 && q.x < surface.width && q.y < surface.width && !surface.wet(*q));
+                if let (Some(l), Some(r)) = (bank(-1.0), bank(1.0)) {
+                    narrowest = narrowest.min(distance(l, r));
+                    height = height.max((surface.height_at(l) + surface.height_at(r)) * 0.5);
+                }
+            }
+            640.0 + narrowest - height.min(100.0)
+        };
+        let sign = if inland_score(1.0) <= inland_score(-1.0) { 1.0 } else { -1.0 };
+        let margin = 700.0;
+        let mut planner = routing::RoutePlanner::new(surface,
+            (a.x.min(b.x) - margin, a.y.min(b.y) - margin, a.x.max(b.x) + margin, a.y.max(b.y) + margin));
+        let mut land_route = |p: Point, q: Point| {
+            if routing::segment_clear(surface, p, q, max_grade) { Some(vec![p, q]) }
+            else { planner.route(p, q, max_grade).filter(|path| routing::path_clear(surface, path, max_grade)) }
+        };
+        let mut replacement = None;
+        for i in 1..=40 {
+            let p = at(sign, i as f64 * 16.0);
+            if p.x < 0.0 || p.y < 0.0 || p.x >= surface.width || p.y >= surface.width { break; }
+            if !surface.wet(p) { break; }
+            if approach.distance(p, 12.0) <= 12.0 { continue; }
+            let Some(mut ends) = crate::urban::footprint::crossings::deck(surface, p) else { continue; };
+            if obstructs(&ends) || deck_landing_grade(surface, ends) > max_grade + EPS { continue; }
+            let wet = routing::water_intervals(surface, ends[0], ends[1]);
+            let span = wet.iter().map(|&(lo, hi)| (hi - lo) * distance(ends[0], ends[1])).sum::<f64>();
+            if wet.len() != 1 || span > max_span + EPS { continue; }
+            if distance(a, ends[0]) > distance(a, ends[1]) { ends.swap(0, 1); }
+            for ends in [ends, [ends[1], ends[0]]] {
+                if let (Some(left), Some(right)) = (land_route(a, ends[0]), land_route(b, ends[1])) {
+                    replacement = Some((ends, left, right));
+                    break;
+                }
+            }
+            if replacement.is_some() { break; }
+        }
+        let street = |path: Vec<Point>, role: &str| Street { widths: vec![width; path.len()], path, rank, role: role.into() };
+        if let Some((ends, left, right)) = replacement {
+            layout.streets.extend([street(left, "approach"), street(ends.to_vec(), "bridge"), street(right, "approach")]);
+        } else if let Some(path) = land_route(a, b) {
+            // A closed cove can be bypassed on land when no deck is admissible.
+            layout.streets.push(street(path, "approach"));
+        }
+        planarize(&mut layout.streets, surface.width * 0.25);
+    }
+}

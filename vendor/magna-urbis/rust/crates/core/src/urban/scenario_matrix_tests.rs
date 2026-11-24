@@ -1,0 +1,193 @@
+//! Conditional scenario matrix through the real request path
+//! (`generate_quarters` → `generate_parcels`): requested, resolved and built
+//! must agree. One row per scenario of TODO P1 « validate combinations »; it
+//! does not certify every combination.
+use super::super::{generate_parcels, generate_quarters, Layout, LayoutConfig, ParcelConfig, Partition, Point, Site, Street, Surface};
+use super::super::programme::ProgrammeFunctions;
+use crate::settlements::demographics::class_of;
+
+fn run(culture: &str, population: u32, cfg: &LayoutConfig) -> (Layout, Partition) {
+    let n = 128;
+    let (height, water) = (vec![0.0; n * n], vec![0u8; n * n]);
+    let surface = Surface { geometry: None, width: 9000.0, n, height: &height, water: &water, interpolation: Default::default(),};
+    let road = Street {
+        path: vec![Point { x: 300.0, y: 4520.0 }, Point { x: 8700.0, y: 4480.0 }],
+        widths: vec![6.0, 6.0], rank: 0, role: "regional".into(),
+    };
+    let site = Site {
+        key: "matrix".into(), name: String::new(), population, culture: culture.into(),
+        center: Point { x: 4500.0, y: 4560.0 }, radius: crate::settlements::extent_radius(population),
+        neighbours: Vec::new(),
+    };
+    let layouts = generate_quarters("matrix", &[site], cfg, surface, &[road]).expect("plan");
+    let partitions = generate_parcels("matrix", &layouts, &ParcelConfig::default()).expect("parcels");
+    (layouts[0].clone(), partitions[0].clone())
+}
+fn built_roles(p: &Partition) -> Vec<String> {
+    p.programme.as_ref().expect("programme").allocations.iter().map(|a| a.role.clone()).collect()
+}
+/// Requested population reaches the programme unchanged (no silent cap), the
+/// requested config is kept on the layout, and the returned grammar is the one expected.
+fn consistent(l: &Layout, p: &Partition, population: u32, cfg: &LayoutConfig, archetype: &str) {
+    assert_eq!(l.archetype, archetype, "grammar for {population}");
+    assert_eq!(p.programme.as_ref().unwrap().population, population, "programme population");
+    let kept = l.config.as_ref().expect("requested config kept");
+    assert_eq!((kept.settlement_form.as_str(), kept.programme.intent.as_str()), (cfg.settlement_form.as_str(), cfg.programme.intent.as_str()));
+}
+
+#[test]
+fn isolated_establishments_build_their_one_structure() {
+    for (intent, population, archetype, role) in [("isolated-farm", 8, "farmstead", "dwelling.farm"), ("isolated-mill", 12, "single", "craft.mill")] {
+        let mut cfg = LayoutConfig::default();
+        cfg.programme.intent = intent.into();
+        let (l, p) = run("european-organic", population, &cfg);
+        consistent(&l, &p, population, &cfg, archetype);
+        assert_eq!(l.quarters.len(), 1, "{intent}: no quarter grid");
+        assert!(l.enclosures.is_empty(), "{intent}: no wall");
+        assert!(built_roles(&p).iter().any(|r| r.starts_with(role)), "{intent}: {:?}", built_roles(&p));
+    }
+}
+
+#[test]
+fn an_activity_intent_builds_its_yard_buildings() {
+    let n = 128;
+    let (height, water, level) = (vec![0.0; n * n], vec![0u8; n * n], vec![0.0; n * n]);
+    let surface = Surface { geometry: None, width: 9000.0, n, height: &height, water: &water, interpolation: Default::default(),};
+    let mut cfg = LayoutConfig::default();
+    cfg.programme.intent = "activity".into();
+    cfg.programme.template = "stone_quarry".into();
+    let (l, p) = run("european-organic", 40, &cfg);
+    let roles = built_roles(&p);
+    eprintln!("blocks {} parcels {} roles {roles:?} warnings {:?} demands {:?}", l.blocks.len(), p.parcels.len(), p.programme.as_ref().unwrap().warnings, p.programme.as_ref().unwrap().demands.iter().map(|d| (d.role.clone(), d.requested, d.target_area, d.deficit, d.parcel_capacity, d.reasons.clone())).collect::<Vec<_>>());
+    for b in &l.blocks { eprintln!("block {} area {:.0}", b.kind, super::super::geometry::area(&b.shape)); }
+    assert!(roles.iter().any(|r| r == "craft.activity"), "{roles:?}");
+    let requests = super::super::building_sites::requests("matrix", std::slice::from_ref(&l), std::slice::from_ref(&p), surface, &level, None).unwrap();
+    let shown: Vec<usize> = requests.iter().map(|r| r["preview"].as_array().map_or(0, |a| a.len())).collect();
+    assert!(shown.iter().any(|&k| k >= 2), "previews {shown:?}");
+    let m = requests.iter().find_map(|r| r["programme"]["massing"].as_array().filter(|a| a.len() >= 2)).expect("yard massing");
+    assert!(m.iter().all(|piece| !piece.is_null()));
+}
+
+#[test]
+fn an_activity_intent_far_from_any_road_still_builds() {
+    let n = 128;
+    let (height, water) = (vec![0.0; n * n], vec![0u8; n * n]);
+    let surface = Surface { geometry: None, width: 9000.0, n, height: &height, water: &water, interpolation: Default::default(),};
+    for (template, roads) in [("windmill_site", vec![]), ("hardrock_mine", vec![Street { path: vec![Point { x: 300.0, y: 4560.0 }, Point { x: 8700.0, y: 4560.0 }], widths: vec![6.0, 6.0], rank: 0, role: "regional".into() }])] {
+        let mut cfg = LayoutConfig::default();
+        cfg.programme.intent = "activity".into();
+        cfg.programme.template = template.into();
+        let site = Site { key: "far".into(), name: String::new(), population: 500, culture: "european-organic".into(), center: Point { x: 4500.0, y: 4560.0 }, radius: 300.0, neighbours: Vec::new() };
+        let layouts = generate_quarters("far", &[site], &cfg, surface, &roads).expect("plan");
+        let partitions = generate_parcels("far", &layouts, &ParcelConfig::default()).expect("parcels");
+        let roles = built_roles(&partitions[0]);
+        assert_eq!(layouts[0].archetype, "single", "{template}");
+        assert!(roles.iter().any(|r| r == "craft.activity"), "{template}: {roles:?} {:?}", partitions[0].programme.as_ref().unwrap().demands.iter().map(|d| d.reasons.clone()).collect::<Vec<_>>());
+    }
+}
+
+#[test]
+fn every_utility_sheet_row_builds_its_yard() {
+    let n = 128;
+    let water = vec![0u8; n * n];
+    // Flat ground, then a 13 % slope (the shot map's 7.4 degrees): a site stands where its resource is.
+    let mut failures = vec![];
+    for grade in [0.0_f32, 0.13] {
+    let height: Vec<f32> = (0..n * n).map(|k| grade * 9000.0 / n as f32 * (k % n) as f32).collect();
+    let surface = Surface { geometry: None, width: 9000.0, n, height: &height, water: &water, interpolation: Default::default(),};
+    for (template, culture) in [("river_watermill", "european-organic"), ("windmill_site", "flemish-cloth-town"), ("stone_quarry", "italian-comune"), ("hardrock_mine", "dwarven"), ("smelter_cluster", "barbarian-norse"), ("coastal_fishing", "norse-ringfort"), ("detached_fishing_camp", "pnw-plank-village"), ("forest_logging", "slavic-gord"), ("saltworks", "venetian-lagoon"), ("caravan_waystation", "ksar-oasis"), ("monastic_farm", "european-organic"), ("pottery_cluster", "mesopotamian"), ("rice_terraces", "javanese-courts"), ("andean_storeway", "inca"), ("road_waystation", "hanseatic"), ("small_farm", "european-organic"), ("small_farm", "yoruba"), ("country_chapel", "european-organic"), ("country_temple", "japanese-jokamachi"), ("roadside_shrine", "chinese"), ("rural_monastery", "tibetan-monastery"), ("country_temple", "medina")] {
+        let mut cfg = LayoutConfig::default();
+        cfg.programme.intent = "activity".into();
+        cfg.programme.template = template.into();
+        let site = Site { key: "row".into(), name: String::new(), population: 500, culture: culture.into(), center: Point { x: 4500.0, y: 4560.0 }, radius: 300.0, neighbours: Vec::new() };
+        let road = Street { path: vec![Point { x: 300.0, y: 4500.0 }, Point { x: 8700.0, y: 4300.0 }], widths: vec![6.0, 6.0], rank: 0, role: "regional".into() };
+        let layouts = generate_quarters("row", &[site], &cfg, surface, &[road]).expect("plan");
+        let partitions = generate_parcels("row", &layouts, &ParcelConfig::default()).expect("parcels");
+        let ok = built_roles(&partitions[0]).iter().any(|r| r == "craft.activity");
+        if !ok || layouts[0].archetype != "single" { failures.push(format!("{template}/{culture}@{grade}: {} {:?}", layouts[0].archetype, partitions[0].programme.as_ref().unwrap().demands.iter().map(|d| d.reasons.clone()).collect::<Vec<_>>())); }
+    }
+    }
+    assert!(failures.is_empty(), "{failures:#?}");
+}
+
+#[test]
+fn village_has_one_phase_no_suburb_and_no_wall() {
+    let cfg = LayoutConfig::default();
+    let (l, p) = run("european-organic", 300, &cfg);
+    assert_eq!(class_of(300), "village");
+    assert!(["street-village", "nucleated-village"].contains(&l.archetype.as_str()), "{}", l.archetype);
+    consistent(&l, &p, 300, &cfg, &l.archetype.clone());
+    assert!(l.enclosures.is_empty());
+    assert!(l.phases.iter().all(|ph| ph.kind != "faubourg"), "no suburb in a village");
+}
+
+#[test]
+fn explicit_enclosure_style_overrides_the_grammar_default() {
+    // A 2 000-inhabitant market town has no wall by default; an explicit style asks for its type.
+    let mut cfg = LayoutConfig::default();
+    let (open, _) = run("european-organic", 2000, &cfg);
+    assert_eq!(open.archetype, "market-town");
+    assert!(open.enclosures.iter().all(|e| !e.purpose.is_empty()), "default market town: no town wall");
+    cfg.fortification_style = "flanked".into();
+    let (walled, p) = run("european-organic", 2000, &cfg);
+    consistent(&walled, &p, 2000, &cfg, &walled.archetype.clone());
+    let main = walled.enclosures.iter().find(|e| e.purpose.is_empty()).expect("town wall built");
+    assert_eq!((main.kind.as_str(), main.style.as_str()), ("wall", "flanked"));
+}
+
+#[test]
+fn artisan_port_capital_keeps_its_weighted_functions_and_demands() {
+    let mut cfg = LayoutConfig::default();
+    cfg.programme.functions = Some(ProgrammeFunctions { artisan: 0.8, port: 0.5, capital: 1.0, ..Default::default() });
+    let (l, p) = run("european-organic", 30_000, &cfg);
+    consistent(&l, &p, 30_000, &cfg, "city");
+    let programme = p.programme.as_ref().unwrap();
+    let json = |f: &Option<ProgrammeFunctions>| serde_json::to_string(f).unwrap();
+    assert_eq!(json(&programme.context.functions), json(&cfg.programme.functions), "functions reach the programme unchanged");
+    let roles = built_roles(&p);
+    assert!(roles.iter().any(|r| r.starts_with("craft.")), "artisan demand is built");
+    // No navigable access declared on a dry site: no port facility is invented.
+    assert!(!programme.navigable_frontage);
+    assert!(roles.iter().all(|r| !r.starts_with("port.")), "no port without water: {roles:?}");
+}
+
+#[test]
+fn metropolis_floor_is_multicentre_and_extrapolated_profiles_are_not_capped() {
+    // 100 000 is the Metropolis class floor: the multi-centre grammar starts there.
+    let cfg = LayoutConfig::default();
+    let (m, p) = run("european-organic", 100_000, &cfg);
+    consistent(&m, &p, 100_000, &cfg, "metropolis");
+    assert!(m.structure.as_ref().unwrap().centers.len() >= 2, "several centres");
+    // A culture far beyond its documented scale keeps the requested population.
+    let (pa, pp) = run("maori-pa", 120_000, &cfg);
+    consistent(&pa, &pp, 120_000, &cfg, "metropolis");
+}
+
+/// Review 14/11 (walled towns too empty): housing land inside a town circuit
+/// is housed before any lot outside it. Outside the walls, only the
+/// population margin (one seed house per outer block) may be spent while a
+/// housing plot inside the circuit is left as a garden.
+#[test]
+fn walled_housing_land_is_housed_before_the_outer_lots() {
+    use super::super::geometry as g;
+    let mut cfg = LayoutConfig::default();
+    cfg.fortification_style = "flanked".into();
+    let (l, p) = run("european-organic", 4000, &cfg);
+    let walls: Vec<g::ContainmentIndex> = l.enclosures.iter().filter(|e| e.purpose.is_empty())
+        .map(|e| g::ContainmentIndex::new(&super::super::Shape { outer: e.path.clone(), holes: vec![] })).collect();
+    assert!(!walls.is_empty(), "town wall built");
+    let pr = p.programme.as_ref().expect("programme");
+    let role: std::collections::HashMap<&str, &str> = pr.allocations.iter().map(|a| (a.parcel_id.as_str(), a.role.as_str())).collect();
+    let (mut vacant_inside, mut housed_outside) = (0usize, 0usize);
+    for parcel in &p.parcels {
+        let inside = walls.iter().any(|w| w.contains(g::interior_point(&parcel.shape)));
+        match role.get(parcel.id.as_str()) {
+            Some(r) if r.starts_with("dwelling") && !inside => housed_outside += 1,
+            Some(&"open.garden") if inside && parcel.use_kind == "plot" => vacant_inside += 1,
+            _ => {}
+        }
+    }
+    let households: f64 = pr.demands.iter().filter(|d| d.unit == "domesticUnits").map(|d| d.requested).sum();
+    assert!(vacant_inside == 0 || (housed_outside as f64) <= 0.3 * households + 1.0,
+        "{vacant_inside} housing plot(s) left empty inside the wall while {housed_outside} lot(s) outside are housed ({households} households)");
+}

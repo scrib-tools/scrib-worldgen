@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Magna Urbis reuse: terrain, nature, roads</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1c1a;--mut:#6b675f;--line:#e2ded5;--card:#fff;
+--mu:#2f6f4f;--mub:#e3f1e8;--ad:#8a5a12;--adb:#f7ecd8;--our:#3d5a8a;--ourb:#e3eaf6;--gap:#9b2f2f;--gapb:#f6e1e1}
+@media (prefers-color-scheme:dark){:root{--bg:#171716;--fg:#e8e6e1;--mut:#a09b91;--line:#34322e;--card:#1f1e1c;
+--mu:#7fc9a0;--mub:#1e3328;--ad:#e0b46a;--adb:#3a2e19;--our:#94b1e6;--ourb:#1f2a3d;--gap:#e88f8f;--gapb:#3d2020}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:980px;margin:0 auto;padding:40px 24px 80px}
+h1{font-size:28px;margin:0 0 4px}
+h2{font-size:20px;margin:44px 0 12px;padding-top:8px;border-top:1px solid var(--line)}
+h3{font-size:16px;margin:24px 0 8px}
+.sub{color:var(--mut);margin:0 0 24px;font-size:14px}
+code{font:13px/1.4 ui-monospace,Consolas,monospace;background:color-mix(in srgb,var(--line) 55%,transparent);padding:1px 4px;border-radius:4px}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:8px 0}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--mut);font-weight:600;font-size:13px}
+.tag{display:inline-block;font-size:12px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap}
+.mu{color:var(--mu);background:var(--mub)}.ad{color:var(--ad);background:var(--adb)}
+.our{color:var(--our);background:var(--ourb)}.gap{color:var(--gap);background:var(--gapb)}
+.lead{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 20px}
+.lead li{margin:6px 0}
+.pipe{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.stage{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stage b{display:block;margin-bottom:8px}
+.stage div{font-size:13px;margin:5px 0}
+.legend{font-size:13px;color:var(--mut);display:flex;gap:14px;flex-wrap:wrap}
+ol li,ul li{margin:4px 0}
+.note{color:var(--mut);font-size:14px}
+@media (max-width:760px){.pipe{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<main>
+<h1>Magna Urbis for terrain, nature and roads: what we reuse</h1>
+<p class="sub">2026-11-24 · Magna Urbis source at rev <code>21e2217</code> (the one scrib-worldgen pins) · for the Morrowind 10x showcase</p>
+
+<div class="lead">
+<b>Short answer</b>
+<ul>
+<li><b>Rivers and lakes: use Magna Urbis as it is.</b> Its water chain takes any square heightfield up to 8192² and returns:
+  <ul>
+  <li>river lines with meanders, braids, oxbows, deltas and estuaries;</li>
+  <li>lakes sized to a water budget;</li>
+  <li>the carved river beds and valleys.</li>
+  </ul>
+  We have none of this. It replaces the meander simulation we had planned to port.</li>
+<li><b>Roads: use Magna Urbis as it is.</b> <code>Terrain::roads</code> links towns we give it and never moves them. It decides which towns connect, picks road classes from highway to trail, and adds bridges and fords. Its output is 2D only. Road heights, grading, bridge geometry and road meshes are ours to add.</li>
+<li><b>Terrain shape: we keep our own.</b> Magna Urbis's terrain generator always works on a 1024² grid. It takes no outside uplift and no fixed areas. Its editing tools are brushes in the web app. Our uplift erosion, landforms, stamps and runtime detail are not duplicates.</li>
+<li><b>Trees and rocks: Magna Urbis only helps a little.</b> It produces a forest canopy map (cover, height, conifer share, a riverbank strip) for display, but no tree positions. Its rocks are shader only. Our scatter stays the placer, and the canopy map can feed it as a density input.</li>
+<li><b>Keeping our towns as anchors:</b> Magna Urbis has no "keep this area" input. It returns the full height change, so we blend that change out over each footprint and drop rivers that cross towns.</li>
+</ul>
+</div>
+
+<h2>Our pipeline, stage by stage</h2>
+<div class="legend"><span><span class="tag mu">MU as-is</span> call the crate</span><span><span class="tag ad">MU adapted</span> use with our glue</span><span><span class="tag our">ours</span> keep our code</span><span><span class="tag gap">gap</span> nobody has it</span></div>
+<div class="pipe">
+<div class="stage"><b>1 · Terrain</b>
+<div><span class="tag our">ours</span> macro relief, landforms</div>
+<div><span class="tag our">ours</span> anchor stamps</div>
+<div><span class="tag our">ours</span> runtime detail</div>
+<div><span class="tag mu">MU as-is</span> rivers, lakes, beds</div>
+<div><span class="tag ad">MU adapted</span> keep anchors (mask)</div>
+</div>
+<div class="stage"><b>2 · Nature assets</b>
+<div><span class="tag ad">MU adapted</span> forest canopy prior</div>
+<div><span class="tag ad">MU adapted</span> soil fields (HAND, wetness)</div>
+<div><span class="tag our">ours</span> tree and rock placement</div>
+<div><span class="tag gap">gap</span> biome map, treeline rules</div>
+</div>
+<div class="stage"><b>3 · Settlements</b>
+<div><span class="tag mu">MU as-is</span> town plans (in use)</div>
+<div><span class="tag mu">MU as-is</span> slopes: terraces, stairs</div>
+<div><span class="tag our">ours</span> kit fitting of buildings</div>
+<div><span class="tag gap">gap</span> pads and retaining walls</div>
+</div>
+<div class="stage"><b>4 · Roads</b>
+<div><span class="tag mu">MU as-is</span> network, classes, bridges</div>
+<div><span class="tag ad">MU adapted</span> fine re-route per link</div>
+<div><span class="tag gap">gap</span> road heights and grading</div>
+<div><span class="tag gap">gap</span> road meshes, bridge kits</div>
+</div>
+</div>
+
+<h2>1 · Terrain and water</h2>
+<table>
+<tr><th>Magna Urbis piece</th><th>What it does</th><th>Decision</th></tr>
+<tr><td>Water chain<br><code>terrain::vector_water::condition_and_water</code></td><td>
+  Takes any square heightfield, 2 to 8192 cells a side, in metres with the sea at 0. In order, it:
+  <ul>
+  <li>digs marsh hollows;</li>
+  <li>breaches or keeps lakes;</li>
+  <li>runs the water budget;</li>
+  <li>builds the river network with meanders, braids, oxbows and deltas;</li>
+  <li>cuts beds and valleys, at most 40 m deep.</li>
+  </ul>
+  It returns the new heights plus <code>delta</code>, the whole change. It also returns the lake mask and level, and the river lines.</td><td><span class="tag mu">MU as-is</span><br>Replaces our planned stage 5 and the meander port.</td></tr>
+<tr><td>Procedural terrain from scratch<br><code>TerrainGenerator</code>, <code>TerrainPipeline</code></td><td>11 relief families. Uplift is built inside the pipeline, and the output is always 1024² whatever the map width.</td><td><span class="tag our">ours</span><br>It takes none of our uplift, rock or anchor inputs.</td></tr>
+<tr><td>Older hydrology engine</td><td>Same idea as the water chain, but capped at 1024².</td><td>Skip. Use the water chain.</td></tr>
+<tr><td>Terrain editing</td><td>Brushes in the web app (raise, lower, level, smooth, restore) and a coarse "draw relief" sketch of at most 128². Nothing in Rust takes a mask of fixed areas.</td><td>Not needed for a batch tool.</td></tr>
+<tr><td>Coasts, canyons, terrain zones, Underdark caves</td><td>Relief families and masks for its own generator.</td><td>Skip. Our coast is given.</td></tr>
+<tr><td>Neural amplification</td><td>A terrain diffusion model. Its bundled weights have no licence grant, and it needs a GPU and a Python service.</td><td>Skip.</td></tr>
+</table>
+
+<h3>Keeping our towns unchanged</h3>
+<ol>
+<li>Build the macro field and stamp the anchors first, so rivers see the towns as ground.</li>
+<li>Shift our sea level to 0, and run the water chain.</li>
+<li>Write <code>h + delta × (1 − w)</code>, where <code>w</code> is our anchor weight: 1 inside a footprint, fading to 0 across its band. Inside footprints the heights then stay exactly the same.</li>
+<li>Drop any river that crosses a footprint, or reroute it, and fix that river's water level where its bed cut was cancelled. That rule is ours to write.</li>
+</ol>
+<p class="note">Risk: a deep valley cut stopped at a footprint edge can leave a step. Our stamp band blend already deals with the same kind of edge.</p>
+
+<h2>2 · Nature assets</h2>
+<table>
+<tr><th>Magna Urbis piece</th><th>What it gives</th><th>Decision</th></tr>
+<tr><td><code>build_forest_field</code></td><td>A raster of about 16 m per cell, at most 1024². Per cell: canopy cover, canopy height up to 50 m, conifer share and stand tone. A second map gives the riverbank tree strip, up to 48 m wide. It reacts to climate, slope, rock, snow and the treeline, and makes clearings. The source marks it "Display only". It has no species and no tree positions.</td><td><span class="tag ad">MU adapted</span><br>Density input for our scatter, plus the riverbank strip.</td></tr>
+<tr><td><code>core/src/resources</code> soil fields</td><td>8 rock classes. Height above the nearest stream (HAND), a wetness index (TWI), soil depth, stoniness and moisture, on a 60-240 m grid.</td><td><span class="tag ad">MU adapted</span><br>Take them when scatter needs wetness or soil.</td></tr>
+<tr><td>Rocks</td><td>Shader detail and small height changes only, done in Godot and Python. Nothing places rocks.</td><td><span class="tag our">ours</span></td></tr>
+</table>
+
+<h2>3 · Settlements (in progress in the settlements session)</h2>
+<ul>
+<li><b>Town plans come from Magna Urbis unmodified.</b> Our <code>settle</code> crate reads sites, wraps MU's types and fits our kit of buildings. It does not duplicate Magna Urbis.</li>
+<li><b>Magna Urbis builds towns on slopes by itself.</b> It uses terrace tissue, stair streets, streets that follow contours, and footings (plinth, terrace with a retaining wall, or stilts) for each building.</li>
+<li><b>Our recipes had those options off.</b> With them on, the real terrain gave 890-995 lots. That makes our <code>valley_terrace</code> grading unnecessary as a step before planning. It stays only to build Magna Urbis's own pads, walls and stairs.</li>
+<li><b>Gap:</b> Magna Urbis never edits terrain. Pads, retaining walls and stair geometry are ours.</li>
+</ul>
+
+<h2>4 · Roads</h2>
+<h3>What Magna Urbis does</h3>
+<ul>
+<li><b>Entry point.</b> <code>Terrain::roads(seed, &amp;[RoadSite], &amp;RoadConfig)</code>. A site is a key, a population, a culture, a centre and a radius. The source states that road options never move a settlement.</li>
+<li><b>Which towns connect.</b> It triangulates the towns and keeps the shortest tree that joins them all. It then adds a shortcut wherever the tree route is much longer than the straight line. A density knob sets how many shortcuts.</li>
+<li><b>Routing.</b> A least-cost search with 24 directions and turn limits, so switchbacks come out of the search. The costs are slope (with a grade limit per class), shores and flood plains, rivers and lakes. Moving along an existing road is cheaper, so roads merge into trunks.</li>
+<li><b>Classes.</b> Highway, main, local, track and trail: 9 / 6.5 / 4.5 / 3 / 1.5 m wide, chosen by traffic. The surface is dirt, gravel, paved or flagstone.</li>
+<li><b>Crossings.</b> New bridges are capped at 400 / 300 / 200 / 100 / 40 m by class. Fords are used on small rivers for tracks and trails, and causeways over shallow lakes. It can also place inns, ferries and toll posts along the network.</li>
+<li><b>Limits.</b> The terrain grid is at most 1024 cells a side, and routing pools it to 512 by default. At 60 km across, that is about 117 m per routing cell. The output is 2D polylines only.</li>
+</ul>
+
+<h3>How we would use it for Morrowind 10x</h3>
+<ol>
+<li><b>Feed it the towns ourselves.</b> That means the kept Morrowind towns at their 10x positions plus Balmora 2.0. We skip Magna Urbis's site picker and turn off map-edge exits, since an island has none.</li>
+<li><b>Route the whole island once on the coarse grid.</b> That gives which towns connect and each road's class. Then re-route each link on a corridor crop at 10-20 m. This step is our glue around Magna Urbis's router.</li>
+<li><b>Join the towns:</b>
+  <ul>
+  <li><b>New towns</b> take the roads as input and grow to meet them. We port Magna Urbis's small TypeScript converter (about 50 lines) to Rust for this.</li>
+  <li><b>Kept towns</b> have fixed exits. We clip the road at the town's edge and snap it to the nearest authored exit.</li>
+  </ul></li>
+<li><b>Build what Magna Urbis does not have:</b>
+  <ul>
+  <li>a height profile along each road;</li>
+  <li>corridor grading (cut, fill, embankments), baked into the heightfield the game reads;</li>
+  <li>bridge decks and ford records.</li>
+  </ul>
+  Then, on the Scrib game side: road meshes or splat layers, and bridge kit placement.</li>
+<li><b>Optional patch:</b> forest, bog or rock as route costs. Today Magna Urbis's cost only knows water and how habitable the land is.</li>
+</ol>
+<p class="note">Before building, check:
+<ul class="note">
+<li>the row order of Magna Urbis's raster;</li>
+<li>whether pooling clips narrow rivers;</li>
+<li>Magna Urbis's water codes, which need river widths and river ids (our site folders only carry open water, so they must come from the water chain);</li>
+<li>a Morrowind row in its 9-culture road profile table.</li>
+</ul></p>
+
+<h2>What was reinvented, and what wasn't</h2>
+<table>
+<tr><th>Our work</th><th>Verdict</th></tr>
+<tr><td><code>valley_terrace</code> as a step before planning (settlements SP-1)</td><td>Not needed. Magna Urbis's terrace and stair options plan on the real slopes. Keep the code only as the builder for MU's pads and walls.</td></tr>
+<tr><td>Planned meander port (worldgen stage 5, Paris 2023)</td><td>Already in Magna Urbis's water chain. Drop the port.</td></tr>
+<tr><td><code>settle</code> crate (crossing, claim, grid, run, site)</td><td>Adapters, not copies. <code>crossing.rs</code> stands in for the regional road until real roads exist, and then becomes a fallback.</td></tr>
+<tr><td><code>sf_worldgen</code> macro relief, landforms, stamps, runtime detail</td><td>No Magna Urbis equivalent that takes our inputs. Keep it.</td></tr>
+</table>
+
+<h2>Gaps: nobody has these yet</h2>
+<ul>
+<li>Water that knows about towns: rivers that route around a footprint or cross it on a bridge.</li>
+<li>Named rivers as inputs ("a river must run here"). Our guide has the strokes, but neither side uses them.</li>
+<li>Small streams narrower than a 25 m cell: they need carving at 2 m from the river lines.</li>
+<li>A biome map and treeline rules for new land that has no Morrowind references to learn from.</li>
+<li>Road heights, grading, bridges and road meshes.</li>
+<li>Building pads, retaining walls and stairs under towns.</li>
+<li>Maps that are not square, or are split into tiles. Magna Urbis works on one square, which is fine for a 60 km island.</li>
+</ul>
+
+<h2>Proposed order (new work needs your go)</h2>
+<ol>
+<li><b>Water tool:</b> call Magna Urbis's water chain from scrib-worldgen on the 10x Vvardenfell guide and apply the anchor mask. One measured run: time, memory, river count, and anchors unchanged to the bit.</li>
+<li><b>Roads tool:</b> towns in, network out with classes and crossings, then the fine re-route per link.</li>
+<li><b>Road terrain:</b> height profile, corridor grading, bridge and ford records.</li>
+<li><b>Game side:</b> road surface (mesh or splat), bridge kit placement.</li>
+<li><b>Forest canopy prior</b> into our scatter.</li>
+</ol>
+
+<h2>How this was checked</h2>
+<p class="note">Two research agents read the source and wrote notes:
+<code>docs/research/magna-urbis-terrain-2026-11-24.md</code> and <code>docs/research/magna-urbis-roads-2026-11-24.md</code>, both in scrib-worldgen, with a file:line for each claim. I then re-read these in the source myself:</p>
+<ul class="note">
+<li><code>condition_and_water</code>: its signature has no mask argument, and <code>Conditioning</code> has no constraint fields.</li>
+<li>The water chain accepts grids of 2 to 8192 (<code>wire.rs:268</code>).</li>
+<li><code>Terrain::roads</code> (<code>settlements/mod.rs:506</code>) and its raster limits: 16 to 1024 cells, 250 m to 200 km (<code>:414</code>).</li>
+<li>The routing grid defaults to 512 (<code>roads/mod.rs:75</code>).</li>
+<li><code>BRIDGE_SPAN</code> is 400/300/200/100/40 m (<code>search.rs:84</code>).</li>
+<li>The forest field is "Display only" (<code>forest.rs:9</code>).</li>
+<li>The terrain crate is <code>magna-urbis-terrain</code> and pure Rust.</li>
+</ul>
+<p class="note">Not run: nothing was built or timed. Magna Urbis is AGPL-3.0-only, so it is used only in scrib-worldgen. Scrib reads the files it writes.</p>
+</main>
+</body>
+</html>
