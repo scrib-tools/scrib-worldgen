@@ -136,7 +136,7 @@ Keep each patch as its own commit (subject `mu-patch NN: ...`) so `git format-pa
   - Re-apply after an upstream update: copy `with_min_frontage` and the test file (`mod min_frontage_tests` in
     `parcels.rs`), and wrap the admission/fallback construction in `block_preparation.rs` again.
 
-- **04 2026-11-27 routing barrier: an optional mask that water goes round (code). In three commits; 1 of 3 here.**
+- **04 2026-11-27 routing barrier: an optional mask that water goes round (code). In three commits; 1 and 2 of 3 are in, the tracing keep-out (3) is not: lines may still cross the mask.**
   Why: an application that keeps places of its own on the relief (a hand-made town on generated ground) needs the
   courses to spill round them. Raising the input instead does not work: the valley cut aims at an absolute section
   (`vector_water/incision.rs`), so a raised wall becomes a deep cut in the band around it, and a raised routing-only
@@ -152,9 +152,21 @@ Keep each patch as its own commit (subject `mu-patch NN: ...`) so `git format-pa
   - Tests: `priority_flood/tests.rs`, four: `None` and an all-zero mask against `flood_grids` / `routing_grids` bit
     for bit on the reference's grids; a tilted 9 x 9 plane with a 3-cell wall (every receiver and area by hand); a
     ringed pit (stays unreached, not filled); a barrier on the map edge and on the sea.
+  - Commit 2, `vector_water/`: the mask goes down the chain as a last `barrier` parameter (before the clock where
+    there is one): new `pub fn condition_and_water_masked` (today's body of `condition_and_water_timed`, which calls
+    it with `None`), `compute_water_timed`, `balance::water_balance` (its flood, `routing_grids_masked`),
+    `hydro_options` (the final flood, `flood_grids_masked`) and `capture_lake_shores` (a barrier cell starts its
+    fresh sum at 0). Without the balance, the conditioning's own flood knows no barrier, so it is flooded again when
+    a mask is given; with it, the first flood (read only by the noise-pit fill) stays unmasked. Callers in `wire.rs`
+    and `tests.rs` pass `None`; `planform_tests.rs`: `v2_conditioning` / `v2_settings` are `pub(super)`.
+  - Tests of commit 2: `vector_water/barrier_tests.rs` (the 256-cell valley of the braid test, an 8 x 21 cell mask
+    across its floor): `None` and an all-zero mask give the bytes of `condition_and_water` (relief, delta, every
+    grid, the lakes, the network as JSON); with the mask no receiver points at a barrier cell, a barrier cell has
+    receiver -1, area 0 and no lake, and the flow from above the mask reaches the sea round it.
   - Re-apply after an upstream update: the five guarded blocks in `flood` (mark, the `queue` test, the tail of
     `order`, infinity around D8, the accumulation start), the parameter on its five callers, the two `_masked`
-    entries, and the tests with their helpers (`same_grids`, `slope`, `barrier_on`, `each_cell_once`).
+    entries, and the tests with their helpers (`same_grids`, `slope`, `barrier_on`, `each_cell_once`). Commit 2: the
+    parameter on the five chain functions and their callers, `barrier_tests.rs` and its `mod` line.
 
 ## Updating to a newer upstream rev
 

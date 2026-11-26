@@ -6,13 +6,15 @@ mod incision;
 mod lake;
 mod metrics;
 #[cfg(test)]
+mod barrier_tests;
+#[cfg(test)]
 mod planform_tests;
 mod rivers;
 #[cfg(test)]
 mod tests;
 mod undulation;
 mod wire;
-use crate::priority_flood::{FloodGrids, flood_grids};
+use crate::priority_flood::{FloodGrids, flood_grids_masked};
 pub use conditioning::{Conditioning, ConditioningResult, condition_relief};
 pub use incision::{bed_depth, incise_rivers};
 pub use lake::{LakeField, lake_field};
@@ -49,7 +51,7 @@ impl Hydrology {
     }
 }
 pub fn hydrology(height: &[f32], n: usize, width: f64) -> Hydrology {
-    hydro_options(height, n, width, None, None, None)
+    hydro_options(height, n, width, None, None, None, None)
 }
 fn hydro_options(
     height: &[f32],
@@ -58,12 +60,13 @@ fn hydro_options(
     weight: Option<&[f32]>,
     outlet: Option<&[u8]>,
     loss: Option<&[f32]>,
+    barrier: Option<&[u8]>,
 ) -> Hydrology {
     Hydrology {
         n,
         width,
         height: height.to_vec(),
-        grids: flood_grids(height, n, (width / n as f64).powi(2), weight, outlet, loss),
+        grids: flood_grids_masked(height, n, (width / n as f64).powi(2), weight, outlet, loss, barrier),
     }
 }
 #[derive(Clone, Deserialize, Serialize)]
@@ -184,7 +187,7 @@ pub fn compute_water(
     seed: &str,
     drainage: Option<Hydrology>,
 ) -> Water {
-    compute_water_timed(height, n, width, s, climate, seed, drainage, &|| 0.0)
+    compute_water_timed(height, n, width, s, climate, seed, drainage, None, &|| 0.0)
 }
 fn compute_water_timed(
     height: &[f32],
@@ -194,14 +197,17 @@ fn compute_water_timed(
     climate: Climate,
     seed: &str,
     drainage: Option<Hydrology>,
+    barrier: Option<&[u8]>,
     now: &dyn Fn() -> f64,
 ) -> Water {
     let started = now();
     let mut balance_ms = 0.0;
     let runoff = climate.runoff();
+    // The handed-in drainage knows no barrier: without the balance it is the routing, so it is flooded again.
+    let drainage = if barrier.is_some() && !s.balance { None } else { drainage };
     let mut h = drainage.unwrap_or_else(|| if s.balance {
         Hydrology { n, width, height: Vec::new(), grids: crate::priority_flood::routing_grids(height, n) }
-    } else { hydrology(height, n, width) });
+    } else { hydro_options(height, n, width, None, None, None, barrier) });
     let total = n * n;
     let (mut lake, mut lakes, mut closed_lakes, mut lake_area_km2);
     let (mut lake_level, mut lake_kind) = (None, None);
@@ -216,6 +222,7 @@ fn compute_water_timed(
             s.lake_depth,
             s.lake_area * 1e4,
             Some(&h),
+            barrier,
         );
         balance_ms = now() - balance_started;
         // The drawn lakes do not depend on the drainage below: known first, they decide which closed bodies are sinks.
@@ -284,6 +291,7 @@ fn compute_water_timed(
             Some(&b.weight),
             Some(&outlet),
             Some(&b.loss),
+            barrier,
         );
         h.height = height.to_vec();
         for c in 0..total {
@@ -346,7 +354,7 @@ fn compute_water_timed(
                 lake_area_km2 += h.cell_area() / 1e6
             }
         }
-        capture_lake_shores(&mut h, &lake, Some(&b.weight), Some(&b.loss), s.river_area * 1e6);
+        capture_lake_shores(&mut h, &lake, Some(&b.weight), Some(&b.loss), s.river_area * 1e6, barrier);
         let mut kind = vec![0; total];
         for c in 0..total {
             if b.lake_of[c] >= 0 {
@@ -357,7 +365,7 @@ fn compute_water_timed(
         lake_kind = Some(kind);
     } else {
         (lake, lakes, lake_area_km2) = water_bodies(&h, s);
-        capture_lake_shores(&mut h, &lake, None, None, s.river_area * 1e6);
+        capture_lake_shores(&mut h, &lake, None, None, s.river_area * 1e6, barrier);
         closed_lakes = 0;
     }
     let river_cells = (0..total)
@@ -446,6 +454,23 @@ pub fn condition_and_water_timed(
     stats: bool,
     now: &dyn Fn() -> f64,
 ) -> (ConditioningResult, Water, f64) {
+    condition_and_water_masked(height, n, width, conditioning, s, climate, seed, stats, None, now)
+}
+/// `condition_and_water_timed` around `barrier` (non-zero = barrier, length n * n): a barrier cell never receives flow,
+/// is never a flood parent or an outlet; a flagged sea cell stays sea. The traced lines do not avoid it yet.
+#[allow(clippy::too_many_arguments)]
+pub fn condition_and_water_masked(
+    height: &[f32],
+    n: usize,
+    width: f64,
+    conditioning: &Conditioning,
+    s: &Settings,
+    climate: Climate,
+    seed: &str,
+    stats: bool,
+    barrier: Option<&[u8]>,
+    now: &dyn Fn() -> f64,
+) -> (ConditioningResult, Water, f64) {
     let started = now();
     // The hollows of a marsh belong to the conditioning: without it the relief is taken as it is. Other ground gets
     // none (an undulated plain showed as rippled farmland): its courses wind by their meander seeds.
@@ -460,7 +485,8 @@ pub fn condition_and_water_timed(
     }
     let mut result = conditioning::condition_options(&source, n, width, conditioning, stats, true, !s.balance);
     let conditioning_ms = now() - started;
-    let mut water = compute_water_timed(&result.height, n, width, s, climate, seed, result.hydrology.take(), now);
+    let mut water =
+        compute_water_timed(&result.height, n, width, s, climate, seed, result.hydrology.take(), barrier, now);
     // The beds of the final courses belong to the conditioned relief and to its delta: the displayed ground is cut
     // along the meandered planform, not along the grid thalweg it started from.
     incision::incise_rivers(&mut result.height, n, width, &mut water, s);
@@ -483,6 +509,7 @@ pub(super) fn capture_lake_shores(
     weight: Option<&[f32]>,
     loss: Option<&[f32]>,
     river_area: f64,
+    barrier: Option<&[u8]>,
 ) -> usize {
     let n = h.n;
     let total = n * n;
@@ -524,7 +551,7 @@ pub(super) fn capture_lake_shores(
         return 0;
     }
     for c in 0..total {
-        g.accumulation[c] = if g.sea[c] == 0 {
+        g.accumulation[c] = if g.sea[c] == 0 && barrier.map_or(true, |b| b[c] == 0) {
             (cell_area * weight.map_or(1.0, |w| w[c] as f64)) as f32
         } else {
             0.0

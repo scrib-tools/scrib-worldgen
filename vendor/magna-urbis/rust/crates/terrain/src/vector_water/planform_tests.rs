@@ -1,10 +1,10 @@
 //! Invariants of the river planform and of the breaches on the V2 chain (V2 default settings).
 use super::*;
 
-fn v2_conditioning(mode: &str) -> Conditioning {
+pub(super) fn v2_conditioning(mode: &str) -> Conditioning {
     Conditioning { mode: mode.into(), strength: 2.0, max_depth: 8.0, max_length: 3000.0, banks: "valley".into(), ..Conditioning::default() }
 }
-fn v2_settings(width: f64) -> Settings {
+pub(super) fn v2_settings(width: f64) -> Settings {
     Settings {
         river_area: (0.003 * (width / 1000.0).powi(2)).max(0.02),
         lake_depth: 1.0,

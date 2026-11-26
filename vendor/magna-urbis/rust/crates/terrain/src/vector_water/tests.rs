@@ -319,7 +319,7 @@ fn rivers_beside_a_lake_drain_into_it() {
             outlets: 1,
         },
     };
-    let captured = super::capture_lake_shores(&mut h, &lake, None, None, 0.5);
+    let captured = super::capture_lake_shores(&mut h, &lake, None, None, 0.5, None);
     assert_eq!(captured, 4);
     for y in 0..4 {
         let r = h.grids.receiver[at(1, y)];

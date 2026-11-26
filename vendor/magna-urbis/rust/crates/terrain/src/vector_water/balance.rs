@@ -79,6 +79,7 @@ pub(super) fn water_balance(
     min_depth: f64,
     min_area: f64,
     drainage: Option<&Hydrology>,
+    barrier: Option<&[u8]>,
 ) -> Balance {
     let total = n * n;
     let cell_area = (width / n as f64).powi(2);
@@ -93,7 +94,7 @@ pub(super) fn water_balance(
         };
     });
     let evap = |z: f64| climate.potential(z) / runoff.r0;
-    let routing = crate::priority_flood::routing_grids(&height, n);
+    let routing = crate::priority_flood::routing_grids_masked(&height, n, barrier);
     let g = &routing;
     let mut depression = vec![-1; total];
     let mut cells: Vec<Vec<usize>> = Vec::new();

@@ -352,6 +352,7 @@ pub fn request_with_clock(body: &[u8], now: &dyn Fn() -> f64) -> Result<Vec<u8>,
                 climate,
                 input.seed.as_deref().unwrap_or(""),
                 drainage,
+                None,
                 now,
             );
             write_water(&mut out, &water, s)
@@ -432,6 +433,7 @@ pub fn request_with_clock(body: &[u8], now: &dyn Fn() -> f64) -> Result<Vec<u8>,
                     s.lake_depth,
                     s.lake_area * 1e4,
                     Some(&h),
+                    None,
                 );
                 out.f32("routingHeight", &b.routing_height);
                 out.f32("weight", &b.weight);
