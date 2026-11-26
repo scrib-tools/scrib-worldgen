@@ -149,6 +149,116 @@ pub fn clip(points: &[[f64; 2]], sites: &[Extent]) -> Vec<Piece> {
     pieces
 }
 
+/// Contact samples per `handover_m` of road in [`clip_at_streets`]: a ratio of the band (no contact narrower than a
+/// quarter of it is missed), not a tunable.
+const SAMPLES_PER_BAND: f64 = 4.0;
+
+/// A point of a polyline tested for contact by [`clip_at_streets`].
+struct Sample {
+    /// Edge it lies on (`points[edge]` to `points[edge + 1]`).
+    edge: usize,
+    /// Arc length (m) from the polyline's start.
+    s: f64,
+    p: [f64; 2],
+    /// Set when the sample is a vertex of the polyline (its index).
+    vertex: Option<usize>,
+}
+
+/// Cut `points` where it runs along a settled site's streets: the run from its first to its last contact
+/// (a point nearer than `handover_m` to any street) is dropped, the pieces before and after are kept and each cut end
+/// gets one more vertex, the nearest point on a street, so the road meets the street's centreline.
+///
+/// Contact is tested on the vertices and on samples at most `handover_m / 4` apart between them; the cut points are
+/// the first and last contact samples. Head = start to the first contact plus its snap vertex, `cut [None, Some(site)]`;
+/// tail = the last contact's snap vertex, then the last contact to the end, `cut [Some(site), None]`. As in [`clip`],
+/// `trimmed_m` at a cut end is the length of the dropped run beside it: the arc length from the first to the last
+/// contact (0 for a single contact; a dropped stub is not counted). A head or tail shorter than `handover_m` (before
+/// its snap vertex) is a stub and is dropped, so a polyline wholly along streets gives none. With no contact, fewer
+/// than 2 points, no streets or `handover_m <= 0`, the result is as [`clip`]'s with no sites: the input uncut (none for
+/// fewer than 2 points).
+#[must_use]
+pub fn clip_at_streets(points: &[[f64; 2]], site: usize, streets: &[Vec<[f64; 2]>], handover_m: f64) -> Vec<Piece> {
+    if points.len() < 2 {
+        return Vec::new();
+    }
+    let uncut = || vec![Piece { points: points.to_vec(), cut: [None, None], trimmed_m: [0.0, 0.0] }];
+    if streets.is_empty() || handover_m <= 0.0 || handover_m.is_nan() {
+        return uncut();
+    }
+    // Each street with its bounding box grown by the band: a sample outside the box is no contact.
+    let boxed: Vec<(&[[f64; 2]], [f64; 4])> = streets
+        .iter()
+        .filter(|st| !st.is_empty())
+        .map(|st| {
+            let b = st.iter().fold([f64::INFINITY, f64::INFINITY, f64::NEG_INFINITY, f64::NEG_INFINITY], |b, q| {
+                [b[0].min(q[0]), b[1].min(q[1]), b[2].max(q[0]), b[3].max(q[1])]
+            });
+            (st.as_slice(), [b[0] - handover_m, b[1] - handover_m, b[2] + handover_m, b[3] + handover_m])
+        })
+        .collect();
+    // Nearest street point to `p` within the band, if any.
+    let snap = |p: [f64; 2]| {
+        boxed
+            .iter()
+            .filter(|(_, b)| p[0] >= b[0] && p[1] >= b[1] && p[0] <= b[2] && p[1] <= b[3])
+            .map(|(st, _)| nearest_on(st, p))
+            .filter(|&(_, d)| d < handover_m)
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(q, _)| q)
+    };
+    let step = handover_m / SAMPLES_PER_BAND;
+    let mut samples = vec![Sample { edge: 0, s: 0.0, p: points[0], vertex: Some(0) }];
+    let mut s0 = 0.0;
+    for (i, w) in points.windows(2).enumerate() {
+        let len = dist(w[0], w[1]);
+        let n = (len / step).ceil().max(1.0) as usize;
+        samples.extend((1..n).map(|j| {
+            let t = j as f64 / n as f64;
+            Sample { edge: i, s: s0 + t * len, p: lerp(w[0], w[1], t), vertex: None }
+        }));
+        s0 += len;
+        samples.push(Sample { edge: i, s: s0, p: w[1], vertex: Some(i + 1) });
+    }
+    let total = s0;
+    let Some(first) = samples.iter().position(|x| snap(x.p).is_some()) else { return uncut() };
+    let last = samples.iter().rposition(|x| snap(x.p).is_some()).unwrap_or(first);
+    let (a, b) = (&samples[first], &samples[last]);
+    let dropped = b.s - a.s;
+    let mut pieces = Vec::new();
+    if a.s >= handover_m {
+        let mut head = match a.vertex {
+            Some(v) => points[..=v].to_vec(),
+            None => points[..=a.edge].iter().copied().chain(std::iter::once(a.p)).collect(),
+        };
+        head.extend(snap(a.p));
+        pieces.push(Piece { points: head, cut: [None, Some(site)], trimmed_m: [0.0, dropped] });
+    }
+    if total - b.s >= handover_m {
+        let mut tail: Vec<[f64; 2]> = snap(b.p).into_iter().collect();
+        match b.vertex {
+            Some(v) => tail.extend_from_slice(&points[v..]),
+            None => tail.extend(std::iter::once(b.p).chain(points[b.edge + 1..].iter().copied())),
+        }
+        pieces.push(Piece { points: tail, cut: [Some(site), None], trimmed_m: [dropped, 0.0] });
+    }
+    pieces
+}
+
+/// Nearest point of the polyline `points` (one point or more) to `p`, and its distance (m).
+fn nearest_on(points: &[[f64; 2]], p: [f64; 2]) -> ([f64; 2], f64) {
+    let on_edge = |a: [f64; 2], b: [f64; 2]| {
+        let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+        let len2 = dx * dx + dy * dy;
+        let t = if len2 > 0.0 { (((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2).clamp(0.0, 1.0) } else { 0.0 };
+        let q = lerp(a, b, t);
+        (q, dist(p, q))
+    };
+    if points.len() == 1 {
+        return (points[0], dist(points[0], p));
+    }
+    points.windows(2).map(|w| on_edge(w[0], w[1])).min_by(|a, b| a.1.total_cmp(&b.1)).unwrap_or((p, f64::INFINITY))
+}
+
 /// Polyline length (m).
 #[must_use]
 pub fn length(points: &[[f64; 2]]) -> f64 {
@@ -191,6 +301,8 @@ fn circle_hits(p: [f64; 2], q: [f64; 2], c: [f64; 2], r: f64) -> impl Iterator<I
 }
 
 #[cfg(test)]
+// Cut and snap points are asserted exactly: they are vertices or nearest points the inputs make exact.
+#[allow(clippy::float_cmp)]
 mod tests {
     use super::*;
 
@@ -207,5 +319,64 @@ mod tests {
         assert_eq!(round(&pieces[0]), (vec![[-30.0, 0.0], [-10.0, 0.0]], [None, Some(0)], [0.0, 20.0]));
         assert_eq!(round(&pieces[1]), (vec![[10.0, 0.0], [30.0, 0.0]], [Some(0), None], [20.0, 0.0]));
         assert!(clip(&[[-5.0, 0.0], [5.0, 1.0]], &[town]).is_empty());
+    }
+
+    /// The x axis from (0, 0) to (1000, 0), a vertex every 100 m.
+    fn road() -> Vec<[f64; 2]> {
+        (0..=10).map(|i| [f64::from(i) * 100.0, 0.0]).collect()
+    }
+
+    fn street_at(x: f64, y0: f64, y1: f64) -> Vec<[f64; 2]> {
+        vec![[x, y0], [x, y1]]
+    }
+
+    const BAND: f64 = 8.0;
+    const SITE: usize = 3;
+
+    #[test]
+    fn road_through_a_town_is_cut_at_both_contacts() {
+        let streets = [street_at(600.0, -50.0, 50.0), street_at(800.0, -50.0, 50.0)];
+        let pieces = clip_at_streets(&road(), SITE, &streets, BAND);
+        assert_eq!(pieces.len(), 2);
+        let (head, tail) = (&pieces[0], &pieces[1]);
+        assert_eq!(head.points[0], [0.0, 0.0]);
+        assert_eq!(*head.points.last().unwrap(), [600.0, 0.0]);
+        let before = head.points[head.points.len() - 2];
+        assert!((before[0] - 592.0).abs() <= 2.0, "{before:?}");
+        assert_eq!(before[1], 0.0);
+        assert_eq!(head.cut, [None, Some(SITE)]);
+        assert_eq!(tail.points[0], [800.0, 0.0]);
+        assert!((tail.points[1][0] - 808.0).abs() <= 2.0, "{:?}", tail.points[1]);
+        assert_eq!(tail.points[1][1], 0.0);
+        assert_eq!(*tail.points.last().unwrap(), [1000.0, 0.0]);
+        assert_eq!(tail.cut, [Some(SITE), None]);
+    }
+
+    #[test]
+    fn road_clear_of_the_streets_is_untouched() {
+        let streets = [street_at(600.0, 100.0, 200.0), street_at(800.0, 100.0, 200.0)];
+        let pieces = clip_at_streets(&road(), SITE, &streets, BAND);
+        assert_eq!(pieces, vec![Piece { points: road(), cut: [None, None], trimmed_m: [0.0, 0.0] }]);
+    }
+
+    #[test]
+    fn road_ending_in_town_loses_its_stub() {
+        let pieces = clip_at_streets(&road(), SITE, &[street_at(995.0, -50.0, 50.0)], BAND);
+        assert_eq!(pieces.len(), 1);
+        assert_eq!(*pieces[0].points.last().unwrap(), [995.0, 0.0]);
+    }
+
+    #[test]
+    fn road_along_a_street_gives_nothing() {
+        let streets = [vec![[-10.0, 2.0], [30.0, 2.0]]];
+        assert!(clip_at_streets(&[[0.0, 0.0], [20.0, 0.0]], SITE, &streets, BAND).is_empty());
+    }
+
+    #[test]
+    fn degenerate_input_comes_back() {
+        let uncut = vec![Piece { points: road(), cut: [None, None], trimmed_m: [0.0, 0.0] }];
+        assert_eq!(clip_at_streets(&road(), SITE, &[], BAND), uncut);
+        assert_eq!(clip_at_streets(&road(), SITE, &[street_at(600.0, -50.0, 50.0)], 0.0), uncut);
+        assert!(clip_at_streets(&[[0.0, 0.0]], SITE, &[street_at(0.0, -50.0, 50.0)], BAND).is_empty());
     }
 }
