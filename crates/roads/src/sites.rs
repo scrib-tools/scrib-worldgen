@@ -26,6 +26,10 @@ pub struct SiteIn {
     /// Settlement extent (m); 0 = Magna Urbis's own from the population (`settlements/mod.rs:655`).
     #[serde(default)]
     pub radius_m: f64,
+    /// A town the settlement tool lays out after the roads: its roads run on to its centre (or landing), with no cut at
+    /// its disc. Kept towns, whose buildings already stand, stay false.
+    #[serde(default)]
+    pub laid_out: bool,
 }
 
 impl SitesFile {

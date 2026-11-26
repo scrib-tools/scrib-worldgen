@@ -64,6 +64,9 @@ pub struct SiteOut {
     /// A centre on water is routed from here instead: the nearest dry routing cell within `landing_search_m`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub landing: Option<[f64; 2]>,
+    /// Laid out after the roads (`sites.json`): its roads run on to its routed point, uncut at its disc.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub laid_out: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -226,6 +229,7 @@ pub fn route(guide_dir: &Path, sites: &SitesFile, recipe: &Recipe) -> Result<Run
             centre_m: s.centre_m,
             radius_m: if s.radius_m > 0.0 { s.radius_m } else { extent_radius(s.population) },
             landing: if let Landing::Moved(p) = *l { Some(p) } else { None },
+            laid_out: s.laid_out,
         })
         .collect();
     let mut file = convert(&out, &frame, recipe, routing_cell_m, site_out);
@@ -252,19 +256,30 @@ pub fn route(guide_dir: &Path, sites: &SitesFile, recipe: &Recipe) -> Result<Run
     Ok(Run { raster, file, summary })
 }
 
+/// The discs roads are cut at: those of the sites not laid out, with each one's index in `sites` (`kept[i]` is the site
+/// of `extents[i]`, the index `Piece::cut` names).
+fn cut_extents(sites: &[SiteOut]) -> (Vec<usize>, Vec<Extent>) {
+    let kept: Vec<usize> = (0..sites.len()).filter(|&i| !sites[i].laid_out).collect();
+    let extents = kept
+        .iter()
+        .map(|&i| Extent { centre: sites[i].centre_m, landing: sites[i].landing, radius: sites[i].radius_m })
+        .collect();
+    (kept, extents)
+}
+
 /// One end of an output segment: a routed junction (Magna Urbis's index), or a cut on a site's edge.
 enum End {
     Routed(usize),
     Cut(usize, [f64; 2]),
 }
 
-/// Magna Urbis's network in the guide frame, cut back to the sites' edges (`ends::clip`): each cut end gets a `site`
-/// junction of its own on the edge, a crossing goes with the piece nearest its middle point (dropped when that point is
-/// inside a site), routed junctions no segment ends at any more are dropped, and ids are renumbered.
+/// Magna Urbis's network in the guide frame, cut back to the edges of the sites not laid out (`ends::clip`): each cut
+/// end gets a `site` junction of its own on the edge, a crossing goes with the piece nearest its middle point (dropped
+/// when that point is inside such a site), routed junctions no segment ends at any more are dropped, and ids are
+/// renumbered. A laid-out site takes no part in the cut: its roads keep their routed junction at its routed point.
 fn convert(out: &RoadOutput, frame: &Frame, recipe: &Recipe, routing_cell_m: f64, sites: Vec<SiteOut>) -> RoadsFile {
     let pts = |path: &[Point]| path.iter().map(|&p| frame.to_guide(p)).collect::<Vec<_>>();
-    let extents: Vec<Extent> =
-        sites.iter().map(|s| Extent { centre: s.centre_m, landing: s.landing, radius: s.radius_m }).collect();
+    let (kept, extents) = cut_extents(&sites);
     let in_site = |p: [f64; 2]| extents.iter().any(|e| std::iter::once(e.centre).chain(e.landing).any(|c| ends::dist(p, c) < e.radius));
     let mut segments: Vec<SegmentOut> = Vec::new();
     let mut seg_ends: Vec<[End; 2]> = Vec::new();
@@ -282,7 +297,7 @@ fn convert(out: &RoadOutput, frame: &Frame, recipe: &Recipe, routing_cell_m: f64
             }
         }
         for (piece, crossings) in pieces.into_iter().zip(crossings) {
-            let end = |cut: Option<usize>, routed: usize, p: [f64; 2]| cut.map_or(End::Routed(routed), |site| End::Cut(site, p));
+            let end = |cut: Option<usize>, routed: usize, p: [f64; 2]| cut.map_or(End::Routed(routed), |e| End::Cut(kept[e], p));
             let (first, last) = (piece.points[0], piece.points[piece.points.len() - 1]);
             seg_ends.push([end(piece.cut[0], s.a, first), end(piece.cut[1], s.b, last)]);
             segments.push(SegmentOut {

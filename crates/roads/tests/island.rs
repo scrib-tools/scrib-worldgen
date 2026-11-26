@@ -180,6 +180,93 @@ fn island_roads_reach_every_site_and_cross_the_river() {
     assert_eq!(roads::run::to_json(file).unwrap(), roads::run::to_json(&again.file).unwrap());
 }
 
+/// A site the settlement tool lays out after the roads: its roads run on to its routed point (no cut at its disc) and it
+/// counts as reached, while every other site is still cut back to its edge.
+#[test]
+fn a_laid_out_site_keeps_its_roads_to_its_centre() {
+    const KEY: &str = "east-a";
+    let recipe = Recipe::parse(RECIPE).unwrap();
+    let dir = guide_dir("roads-laid-out");
+    let mut sites = sites();
+    sites.sites.iter_mut().find(|s| s.key == KEY).unwrap().laid_out = true;
+    let run = roads::route(&dir, &sites, &recipe).unwrap();
+    println!("{}", run.summary);
+    let file = &run.file;
+    let cell = file.routing_cell_m;
+    let tol = 1e-6;
+    let dist = |p: [f64; 2], q: [f64; 2]| (p[0] - q[0]).hypot(p[1] - q[1]);
+    let ends_at = |g: &roads::run::SegmentOut, j: usize| {
+        let mut v = Vec::new();
+        if g.a == j {
+            v.push((g.points[0], g.trimmed_m[0]));
+        }
+        if g.b == j {
+            v.push((*g.points.last().unwrap(), g.trimmed_m[1]));
+        }
+        v
+    };
+
+    // (3) Every site reached, the laid-out one included.
+    assert!(file.unreachable.is_empty(), "unreachable: {:?}", file.unreachable);
+
+    // (1) The laid-out site: its junctions sit on its routed point, not its edge, and the segments ending there are
+    // untrimmed; roads run on inside its disc.
+    let town = file.sites.iter().find(|s| s.key == KEY).unwrap();
+    assert!(town.laid_out && town.landing.is_none(), "{town:?}");
+    let routed = town.landing.unwrap_or(town.centre_m);
+    let js: Vec<_> = file.junctions.iter().filter(|j| j.sites.iter().any(|k| k == KEY)).collect();
+    assert!(!js.is_empty(), "{KEY}: no junction");
+    let mut ends = 0;
+    for j in js {
+        assert_eq!(j.kind, "site", "{KEY}: junction {}", j.id);
+        let off = dist(j.pos, routed);
+        assert!(off <= cell, "{KEY}: junction {} {off:.1} m from its routed point (cell {cell:.1})", j.id);
+        assert!(town.radius_m - off > cell, "{KEY}: junction {} on its edge", j.id);
+        for g in &file.segments {
+            for (end, trimmed) in ends_at(g, j.id) {
+                assert!(dist(end, j.pos) <= tol, "{KEY}: segment {} ends off its junction", g.id);
+                assert!(dist(end, routed) <= cell, "{KEY}: segment {} ends {:.1} m off", g.id, dist(end, routed));
+                assert!(trimmed == 0.0, "{KEY}: segment {} trimmed {trimmed:.1} m", g.id);
+                ends += 1;
+            }
+        }
+    }
+    assert!(ends > 0, "{KEY}: no segment ends at its routed point");
+    assert!(
+        file.segments.iter().flat_map(|g| &g.points).any(|&p| dist(p, town.centre_m) < town.radius_m),
+        "{KEY}: no road inside its disc"
+    );
+
+    // (2) Every other site is still cut on its edge: no road point inside its disc, its junctions on its edge at
+    // trimmed segment ends.
+    for s in file.sites.iter().filter(|s| s.key != KEY) {
+        assert!(!s.laid_out, "{}", s.key);
+        let discs: Vec<[f64; 2]> = std::iter::once(s.centre_m).chain(s.landing).collect();
+        for g in &file.segments {
+            for &p in &g.points {
+                for &c in &discs {
+                    assert!(dist(p, c) >= s.radius_m - tol, "segment {} point {p:?} inside {}", g.id, s.key);
+                }
+            }
+        }
+        let js: Vec<_> = file.junctions.iter().filter(|j| j.sites.contains(&s.key)).collect();
+        assert!(!js.is_empty(), "{}: no junction", s.key);
+        for j in js {
+            let off = discs.iter().map(|&c| (dist(j.pos, c) - s.radius_m).abs()).fold(f64::INFINITY, f64::min);
+            assert!(off <= cell, "{}: junction {} {off:.1} m off its edge", s.key, j.id);
+            for g in &file.segments {
+                for (_, trimmed) in ends_at(g, j.id) {
+                    assert!(trimmed > 0.0, "{}: segment {} reaches the edge untrimmed", s.key, g.id);
+                }
+            }
+        }
+    }
+
+    // The flag is written for the laid-out site only (files without it stay as they were).
+    assert_eq!(roads::run::to_json(file).unwrap().matches("\"laid_out\": true").count(), 1);
+    assert!(!roads::run::to_json(&roads::route(&dir, &self::sites(), &recipe).unwrap().file).unwrap().contains("laid_out"));
+}
+
 #[test]
 fn a_culture_without_a_profile_is_refused() {
     let recipe = Recipe::parse(RECIPE).unwrap();
