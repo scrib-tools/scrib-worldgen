@@ -13,6 +13,8 @@ const DX: [isize; 8] = [-1, 0, 1, -1, 1, -1, 0, 1];
 const DY: [isize; 8] = [-1, -1, -1, 0, 0, 1, 1, 1];
 /// Outlets are marked with this receiver until the flood ends.
 const OUTLET: i32 = -2;
+/// Barrier cells are marked with this receiver: never queued, never reached.
+const BLOCKED: i32 = -3;
 /// Slots of the incision's rate table (a power of two).
 const RATES: usize = 2048;
 
@@ -51,6 +53,20 @@ pub fn flood_grids(
     outlet: Option<&[u8]>,
     loss: Option<&[f32]>,
 ) -> FloodGrids {
+    flood_grids_masked(height, n, cell_area, weight, outlet, loss, None)
+}
+
+/// `flood_grids` around the `barrier` cells (non-zero, not sea): they receive no
+/// flow, keep their height and end `order`, with any cell they cut off.
+pub(crate) fn flood_grids_masked(
+    height: &[f32],
+    n: usize,
+    cell_area: f64,
+    weight: Option<&[f32]>,
+    outlet: Option<&[u8]>,
+    loss: Option<&[f32]>,
+    barrier: Option<&[u8]>,
+) -> FloodGrids {
     let mut grids = FloodGrids::default();
     flood(
         height,
@@ -62,6 +78,7 @@ pub fn flood_grids(
         true,
         true,
         true,
+        barrier,
         &mut grids,
         &mut Scratch::default(),
     );
@@ -106,6 +123,7 @@ pub(crate) fn flood_surface(height: &[f32], n: usize, routing: bool) -> FloodGri
         false,
         routing,
         false,
+        None,
         &mut grids,
         &mut Scratch::default(),
     );
@@ -126,6 +144,7 @@ pub(crate) fn flood_areas(height: &[f32], n: usize, cell_area: f64) -> FloodGrid
         false,
         true,
         true,
+        None,
         &mut grids,
         &mut Scratch::default(),
     );
@@ -135,6 +154,11 @@ pub(crate) fn flood_areas(height: &[f32], n: usize, cell_area: f64) -> FloodGrid
 /// Water balance needs a complete topological order, but supplies its own
 /// runoff accumulation and does not use basin labels.
 pub(crate) fn routing_grids(height: &[f32], n: usize) -> FloodGrids {
+    routing_grids_masked(height, n, None)
+}
+
+/// `routing_grids` around the `barrier` cells, as `flood_grids_masked`.
+pub(crate) fn routing_grids_masked(height: &[f32], n: usize, barrier: Option<&[u8]>) -> FloodGrids {
     let mut grids = FloodGrids::default();
     flood(
         height,
@@ -146,6 +170,7 @@ pub(crate) fn routing_grids(height: &[f32], n: usize) -> FloodGrids {
         true,
         true,
         false,
+        barrier,
         &mut grids,
         &mut Scratch::default(),
     );
@@ -174,6 +199,7 @@ pub fn erode_grid(height: &mut [f32], n: usize, cell_area: f64, steps: u32, depo
             false,
             true,
             true,
+            None,
             &mut grids,
             &mut scratch,
         );
@@ -379,6 +405,7 @@ fn flood(
     every_cell: bool,
     routing: bool,
     accumulate: bool,
+    barrier: Option<&[u8]>,
     grids: &mut FloodGrids,
     scratch: &mut Scratch,
 ) {
@@ -418,10 +445,21 @@ fn flood(
             }
         }
     }
+    // Barrier cells, the sea excepted, are never reached.
+    if let Some(b) = barrier {
+        for c in 0..total {
+            if b[c] != 0 && sea[c] == 0 {
+                receiver[c] = BLOCKED;
+            }
+        }
+    }
 
     // Outlets: the sea, the extra outlets and the map edge, queued in raster order.
     let mut inserted = 0;
     let mut queue = |c: usize| {
+        if receiver[c] == BLOCKED {
+            return;
+        }
         inserted += 1;
         queued[c] = inserted;
         receiver[c] = OUTLET;
@@ -550,6 +588,15 @@ fn flood(
             sweep.pop(cell as usize, rank, key_height(key, height, cell as usize));
         }
     }
+    // Barrier cells, and any cell they cut off, end the order in raster order.
+    if barrier.is_some() {
+        for c in 0..total {
+            let r = sweep.receiver[c];
+            if r == -1 || r == BLOCKED {
+                sweep.visit(c);
+            }
+        }
+    }
     debug_assert_eq!(sweep.popped, count);
 
     if !routing {
@@ -559,6 +606,14 @@ fn flood(
     // Steepest D8 descent on the filled surface; flats keep their flood parent.
     // Sea, outlet and edge cells have no receiver: every other cell is inner.
     let offsets = sweep.offsets;
+    // D8 never descends into a barrier cell.
+    if barrier.is_some() {
+        for c in 0..total {
+            if grids.receiver[c] == BLOCKED {
+                grids.filled[c] = f32::INFINITY;
+            }
+        }
+    }
     let filled: &[f32] = &grids.filled;
     let route = |y: usize, row: &mut [i32]| {
         for (x, receiver) in row.iter_mut().enumerate() {
@@ -599,6 +654,13 @@ fn flood(
     } else {
         crate::terrain_par::rows(&mut grids.receiver, n, route);
     }
+    if let Some(b) = barrier {
+        for c in 0..total {
+            if b[c] != 0 && grids.sea[c] == 0 {
+                grids.filled[c] = height[c];
+            }
+        }
+    }
 
     if !accumulate {
         return;
@@ -609,10 +671,10 @@ fn flood(
     let accumulation = &mut grids.accumulation;
     accumulation.resize(total, 0.0);
     match weight {
-        None if !any_sea => accumulation.fill(cell_area as f32),
+        None if !any_sea && barrier.is_none() => accumulation.fill(cell_area as f32),
         _ => {
             for c in 0..total {
-                accumulation[c] = if sea[c] == 0 {
+                accumulation[c] = if sea[c] == 0 && barrier.is_none_or(|b| b[c] == 0) {
                     (cell_area * weight.map_or(1.0, |w| w[c] as f64)) as f32
                 } else {
                     0.0

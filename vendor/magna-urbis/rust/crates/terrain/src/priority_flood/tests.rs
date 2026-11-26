@@ -1,6 +1,8 @@
 //! The former queue-based WASM kernel, kept as the reference: the sweep must reproduce
 //! it bit for bit, on grids with ties, pits, sea, outlets, weights and losses.
-use super::{erode_grid, flood_grids};
+use super::{
+    erode_grid, flood_grids, flood_grids_masked, routing_grids, routing_grids_masked, FloodGrids,
+};
 
 const DX: [isize; 8] = [-1, 0, 1, -1, 1, -1, 0, 1];
 const DY: [isize; 8] = [-1, -1, -1, 0, 0, 1, 1, 1];
@@ -416,6 +418,151 @@ fn the_sweep_reproduces_the_queue_bit_for_bit() {
             }
         }
     }
+}
+
+fn same_grids(a: &FloodGrids, b: &FloodGrids, what: &str) {
+    same_bits(&a.filled, &b.filled, what);
+    same_bits(&a.accumulation, &b.accumulation, what);
+    assert_eq!(a.order, b.order, "{what}");
+    assert_eq!(a.receiver, b.receiver, "{what}");
+    assert_eq!(a.basin, b.basin, "{what}");
+    assert_eq!(a.sea, b.sea, "{what}");
+    assert_eq!(a.outlets, b.outlets, "{what}");
+}
+
+#[test]
+fn no_barrier_and_an_empty_barrier_change_nothing() {
+    let cases = [
+        (0.0, false),
+        (0.0, true),
+        (4.0, false),
+        (4.0, true),
+        (1000.0, false),
+    ];
+    for n in [2, 3, 5, 33, 96] {
+        for (case, (levels, sea)) in cases.into_iter().enumerate() {
+            let h = field(n, 77 + case as u64, levels, sea);
+            let total = n * n;
+            let weight: Vec<f32> = (0..total).map(|i| 0.5 + (i % 11) as f32 * 0.1).collect();
+            let outlet: Vec<u8> = (0..total).map(|i| u8::from(i % 97 == 40)).collect();
+            let loss: Vec<f32> = (0..total)
+                .map(|i| if i % 13 == 0 { 0.7 } else { 0.0 })
+                .collect();
+            let empty = vec![0_u8; total];
+            for extra in [false, true] {
+                let (w, o, l) = if extra {
+                    (Some(&weight[..]), Some(&outlet[..]), Some(&loss[..]))
+                } else {
+                    (None, None, None)
+                };
+                let what = format!("n={n} case={case} extra={extra}");
+                let plain = flood_grids(&h, n, 12.5, w, o, l);
+                same_grids(&plain, &flood_grids_masked(&h, n, 12.5, w, o, l, None), &what);
+                same_grids(&plain, &flood_grids_masked(&h, n, 12.5, w, o, l, Some(&empty)), &what);
+            }
+            let what = format!("routing n={n} case={case}");
+            let plain = routing_grids(&h, n);
+            for masked in [routing_grids_masked(&h, n, None), routing_grids_masked(&h, n, Some(&empty))] {
+                same_bits(&plain.filled, &masked.filled, &what);
+                assert_eq!(plain.order, masked.order, "{what}");
+                assert_eq!(plain.receiver, masked.receiver, "{what}");
+                assert_eq!(plain.sea, masked.sea, "{what}");
+            }
+        }
+    }
+}
+
+/// Fixture P: 9 x 9 land falling west, a little north.
+fn slope() -> Vec<f32> {
+    (0..81).map(|i| 1.0 + (i % 9) as f32 + 0.01 * (i / 9) as f32).collect()
+}
+
+fn barrier_on(cells: &[usize]) -> Vec<u8> {
+    let mut b = vec![0_u8; 81];
+    cells.iter().for_each(|&c| b[c] = 1);
+    b
+}
+
+fn each_cell_once(order: &[i32]) {
+    let mut seen = order.to_vec();
+    seen.sort_unstable();
+    assert_eq!(seen, (0..81).collect::<Vec<i32>>());
+}
+
+#[test]
+fn flow_goes_round_a_barrier() {
+    let h = slope();
+    let wall = [31, 40, 49];
+    let g = flood_grids_masked(&h, 9, 1.0, None, None, None, Some(&barrier_on(&wall)));
+    let mut expect = vec![-1_i32; 81];
+    for y in 1..8 {
+        for x in 1..8 {
+            let c = y * 9 + x;
+            expect[c] = c as i32 - 1;
+        }
+    }
+    wall.iter().for_each(|&c| expect[c] = -1);
+    (expect[32], expect[41], expect[50]) = (22, 32, 58);
+    assert_eq!(g.receiver, expect);
+    for c in wall {
+        assert_eq!(g.accumulation[c], 0.0);
+    }
+    assert_eq!(g.accumulation[41], 3.0);
+    assert_eq!(g.accumulation[32], 6.0);
+    assert_eq!(g.accumulation[22], 10.0);
+    assert_eq!(g.accumulation[58], 7.0);
+    let west: Vec<f32> = (1..=7).map(|y| g.accumulation[y * 9]).collect();
+    assert_eq!(west, [8.0, 14.0, 4.0, 4.0, 4.0, 11.0, 8.0]);
+    assert_eq!(west.iter().sum::<f32>(), 53.0);
+    same_bits(&g.filled, &h, "filled");
+    assert_eq!(g.order.len(), 81);
+    each_cell_once(&g.order);
+    assert_eq!(g.order[78..], [31, 40, 49]);
+    assert_eq!(g.sea, vec![0_u8; 81]);
+    let mut roots = g.basin.clone();
+    roots.sort_unstable();
+    roots.dedup();
+    assert_eq!(roots.len(), 35);
+    assert_eq!(g.outlets, 35);
+}
+
+#[test]
+fn a_ringed_cell_stays_unreached() {
+    let mut h = slope();
+    h[40] = 0.5;
+    let ring = [30, 31, 32, 39, 41, 48, 49, 50];
+    let g = flood_grids_masked(&h, 9, 1.0, None, None, None, Some(&barrier_on(&ring)));
+    let cut = [30, 31, 32, 39, 40, 41, 48, 49, 50];
+    assert_eq!(g.order[72..], cut);
+    each_cell_once(&g.order);
+    for c in cut {
+        assert_eq!(g.receiver[c as usize], -1);
+    }
+    assert!(g.receiver.iter().all(|&r| !cut.contains(&r)));
+    assert_eq!(g.filled[40].to_bits(), 0.5_f32.to_bits());
+    assert_eq!(g.accumulation[40], 1.0);
+    for c in ring {
+        assert_eq!(g.accumulation[c], 0.0);
+    }
+}
+
+#[test]
+fn the_sea_and_the_edge_against_a_barrier() {
+    let h = slope();
+    let g = flood_grids_masked(&h, 9, 1.0, None, None, None, Some(&barrier_on(&[36])));
+    assert_eq!(g.receiver[37], 27);
+    assert_eq!(g.accumulation[36], 0.0);
+    assert_eq!(g.accumulation[37], 7.0);
+    assert_eq!(g.accumulation[27], 15.0);
+    assert_eq!(g.order[80], 36);
+    assert!(g.receiver.iter().all(|&r| r != 36));
+
+    let mut h = slope();
+    (0..9).for_each(|y| h[y * 9] = -1.0);
+    let g = flood_grids_masked(&h, 9, 1.0, None, None, None, Some(&barrier_on(&[36])));
+    same_grids(&flood_grids(&h, 9, 1.0, None, None, None), &g, "sea");
+    assert_eq!(g.sea[36], 1);
+    assert_eq!(g.receiver[37], 36);
 }
 
 #[test]

@@ -136,6 +136,26 @@ Keep each patch as its own commit (subject `mu-patch NN: ...`) so `git format-pa
   - Re-apply after an upstream update: copy `with_min_frontage` and the test file (`mod min_frontage_tests` in
     `parcels.rs`), and wrap the admission/fallback construction in `block_preparation.rs` again.
 
+- **04 2026-11-27 routing barrier: an optional mask that water goes round (code). In three commits; 1 of 3 here.**
+  Why: an application that keeps places of its own on the relief (a hand-made town on generated ground) needs the
+  courses to spill round them. Raising the input instead does not work: the valley cut aims at an absolute section
+  (`vector_water/incision.rs`), so a raised wall becomes a deep cut in the band around it, and a raised routing-only
+  surface leaves wall-high `filled` levels that `rivers/support.rs` (`across_beds`, `floor_path`) and the line levels
+  read as water. So the mask goes inside the flood. `None` gives today's bytes everywhere.
+  - Commit 1, `priority_flood.rs`: `flood` takes `barrier: Option<&[u8]>` (non-zero = barrier). A barrier cell is
+    marked `BLOCKED` (-3) after the sea fill, so `reach` never queues, fills or expands it; it is never an outlet
+    (map edge and `outlet` flag included); a flagged sea cell stays sea. D8 runs with `filled` = infinity on barrier
+    cells (it ignores the flood parent wherever the ground drops), restored to the cell's height after. Barrier cells
+    and any cell they cut off end `order` in raster order (so `order` still lists every cell once), hold receiver -1
+    and `filled` = their own height; a barrier cell's accumulation is 0. Entries: `flood_grids_masked`,
+    `routing_grids_masked` (`pub(crate)`); `flood_grids` and `routing_grids` call them with `None`.
+  - Tests: `priority_flood/tests.rs`, four: `None` and an all-zero mask against `flood_grids` / `routing_grids` bit
+    for bit on the reference's grids; a tilted 9 x 9 plane with a 3-cell wall (every receiver and area by hand); a
+    ringed pit (stays unreached, not filled); a barrier on the map edge and on the sea.
+  - Re-apply after an upstream update: the five guarded blocks in `flood` (mark, the `queue` test, the tail of
+    `order`, infinity around D8, the accumulation start), the parameter on its five callers, the two `_masked`
+    entries, and the tests with their helpers (`same_grids`, `slope`, `barrier_on`, `each_cell_once`).
+
 ## Updating to a newer upstream rev
 
 1. Note the new rev; read upstream's log between the two revs for the crates we use.
