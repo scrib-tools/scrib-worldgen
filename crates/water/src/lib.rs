@@ -7,7 +7,8 @@
 //! under the bank, river levels in the carved bed). Lakes touching a height stamp are dropped and rivers are cut
 //! where they enter one or a dropped lake (the runtime restores stamps, `mix(h_gen, h_stamp, w)`, so their ground
 //! is not water). A dry closed basin that a course crosses at its spill level (Magna Urbis kept no lake there) is
-//! filled as a lake at that level and the course split at it; one touching a stamp, larger than
+//! filled as a lake at that level and the course split at it (its run through the lake is written as a
+//! `lake_link`, as Magna Urbis writes one through its own lakes); one touching a stamp, larger than
 //! `max_basin_lake_km2` or reaching other water ends the course at its rim instead.
 //! Magna Urbis (github.com/dunkean/magna-urbis, AGPL-3.0-only) is used unmodified, pinned to one commit.
 // Grid and geometry code: short coordinate names (x, y, c, r, w, h) read best.

@@ -181,8 +181,46 @@ fn basin_crossed_by_a_river_becomes_a_lake() {
     let from = usize::try_from(lake["from_course"].as_u64().expect("from_course")).unwrap();
     let last = all[from].last().unwrap();
     assert!(inside([last[0], last[1]], &outline) && last[3] <= level + 1e-9, "river {from} ends on the lake");
-    let out = all.iter().position(|p| inside([p[0][0], p[0][1]], &outline) && (p[0][3] - level).abs() < 1e-9);
-    assert!(out.is_some(), "a course leaves the lake at its level");
+    let records = a.file["rivers"].as_array().unwrap();
+    let out = (0..all.len()).position(|i| {
+        let p = &all[i];
+        records[i]["kind"] != "lake_link" && inside([p[0][0], p[0][1]], &outline) && (p[0][3] - level).abs() < 1e-9
+    });
+    let out = out.expect("a course leaves the lake at its level");
+    // The run of a course through the lake is a lake link, written after the courses (their ids do not move): from
+    // the last point of the piece flowing in to the first of the piece flowing out (when that piece is written: a
+    // course may end at a rim past the lake), every point on the lake at its level, and of the same Magna Urbis line.
+    let links: Vec<usize> = (0..records.len()).filter(|&i| records[i]["kind"] == "lake_link").collect();
+    println!("lake links {links:?} of {} records, in piece {from}, out piece {out}", records.len());
+    assert_eq!(out, from + 1, "the piece flowing out follows the piece flowing in");
+    assert_eq!(s.basin_links, links.len(), "Magna Urbis keeps no lake, so every lake link is a basin lake's");
+    assert_eq!(links, (records.len() - links.len()..records.len()).collect::<Vec<_>>(), "the links come last");
+    let courses = records.len() - links.len();
+    let mut of_from = 0;
+    for &i in &links {
+        let link = &all[i];
+        assert!(link.len() >= 2);
+        assert_eq!(records[i]["id"], i);
+        let before: Vec<usize> = (0..courses).filter(|&r| all[r][all[r].len() - 1][..3] == link[0][..3]).collect();
+        assert_eq!(before.len(), 1, "link {i} starts on the last point of one piece flowing in");
+        assert_eq!(records[i]["mu_id"], records[before[0]]["mu_id"], "link {i} is of the line flowing in");
+        let after = before[0] + 1;
+        if after < courses && records[after]["mu_id"] == records[i]["mu_id"] {
+            assert_eq!(link[link.len() - 1][..3], all[after][0][..3], "link {i} ends on the first point of the piece flowing out");
+        }
+        if before[0] == from {
+            of_from += 1;
+            assert!(link.len() >= 3, "the fixture's course has points inside the lake: {}", link.len());
+            assert_eq!(link[link.len() - 1][..3], all[out][0][..3], "the link of the lake's course ends on its piece flowing out");
+        }
+        for q in link {
+            assert!(inside([q[0], q[1]], &outline), "link {i} point {q:?} off the lake");
+            assert!((q[3] - level).abs() < 1e-12, "link {i} point {q:?} off the lake's level {level}");
+        }
+        assert_eq!(records[i]["clipped"], false);
+        assert!(records[i].get("joins").is_none(), "only the piece that ends the course names what it joins");
+    }
+    assert_eq!(of_from, 1, "one link from the piece that made the lake");
     // No course runs on over the lake water: inside the outline, a point is on the bank (pushed-out band) or at
     // most at the lake's level.
     for p in &all {
@@ -200,7 +238,7 @@ fn basin_crossed_by_a_river_becomes_a_lake() {
     // The same basin with a stamp in it, away from every course: no lake, the course ends at the basin's rim.
     // Away from every course, and from the straight crossing between the course's in and out pieces (Magna
     // Urbis's route across the basin, dropped from the output).
-    let (start, end) = ([last[0], last[1]], [all[out.unwrap()][0][0], all[out.unwrap()][0][1]]);
+    let (start, end) = ([last[0], last[1]], [all[out][0][0], all[out][0][1]]);
     let crossing: Vec<[f64; 2]> =
         (0..=20).map(|i| f64::from(i) / 20.0).map(|t| [start[0] + (end[0] - start[0]) * t, start[1] + (end[1] - start[1]) * t]).collect();
     let far = |p: [f64; 2]| {

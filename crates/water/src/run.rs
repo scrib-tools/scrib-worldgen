@@ -45,7 +45,8 @@ pub struct LakeOut {
 #[derive(Serialize)]
 pub struct RiverOut {
     pub id: usize,
-    /// The Magna Urbis network list it comes from: `river`, `braid`, `distributary` or `lake_link`.
+    /// The Magna Urbis network list it comes from: `river`, `braid`, `distributary` or `lake_link`; `lake_link`
+    /// also for a course's run through a basin lake (`Stats::basin_links`), which keeps its course's `mu_id`.
     pub kind: &'static str,
     /// Magna Urbis's own line id, the id it joins and its outlet, passed through.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -97,6 +98,9 @@ pub struct Stats {
     pub lake_vertices_below: usize,
     /// Dry closed basins a course crossed at its spill level, filled as lakes at that level.
     pub basin_lakes: usize,
+    /// Runs of a course through such a lake written as `lake_link` records (from the piece flowing in to the piece
+    /// flowing out).
+    pub basin_links: usize,
     /// Courses ended at the rim of such a basin instead (the downstream part dropped), by cause: the basin touches
     /// a stamp, is larger than `max_basin_lake_km2`, or reaches other water (a lake, the sea, the guide's edge).
     pub courses_ended_stamp: usize,
@@ -120,8 +124,8 @@ impl Report {
         format!(
             "worldgen-water: grid {} (padded {}, /{}), {:.1} s, {} lakes, {} rivers, {:.1} river km, max |delta| {:.2} m, \
              dropped {} lakes, clipped {} rivers, dropped {} rivers, {} levels pooled; river level - centre ground p50 {:.2} m, \
-             p90 {:.2} m; lake outline vertices below level {:.1} % ({} of {}); {} basins filled as lakes, \
-             {} courses ended at a basin rim ({} stamp, {} size, {} water), {} points floating",
+             p90 {:.2} m; lake outline vertices below level {:.1} % ({} of {}); {} basins filled as lakes \
+             ({} lake links through them), {} courses ended at a basin rim ({} stamp, {} size, {} water), {} points floating",
             s.grid_n,
             s.padded_n,
             s.downsample,
@@ -140,7 +144,8 @@ impl Report {
             s.lake_vertices_below,
             s.lake_vertices,
             s.basin_lakes,
-            s.courses_ended_stamp + s.courses_ended_size + s.courses_ended_water,
+            s.basin_links,
+            s.courses_ended_stamp +s.courses_ended_size + s.courses_ended_water,
             s.courses_ended_stamp,
             s.courses_ended_size,
             s.courses_ended_water,
@@ -702,8 +707,11 @@ fn basin_outline(
 /// the ground: Magna Urbis's route crosses a dry closed basin at its spill level, and the fitted level pools to
 /// that spill), the basin is flooded at the pooled level and becomes a lake (`from_course`), the hydrologically
 /// right state of a basin a river flows through; the course is split at it like Magna Urbis's lake links (in and
-/// out pieces, each keeping one point on the lake). A basin touching a stamp, larger than `max_basin_lake_km2` or
-/// reaching other water ends the course at its rim instead (a terminal sink, the downstream part dropped).
+/// out pieces, each keeping one point on the lake, and between them its run through the lake written as a
+/// `lake_link` at the lake's level, as Magna Urbis writes one through each of its own lakes
+/// (`rivers/network.rs:1932`): a reader follows the course across the lake; these records come last, after Magna
+/// Urbis's lists, so the ids of the courses do not depend on them). A basin touching a stamp, larger
+/// than `max_basin_lake_km2` or reaching other water ends the course at its rim instead (a terminal sink, the downstream part dropped).
 #[allow(clippy::too_many_lines, clippy::cast_precision_loss, clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 fn rivers(
     water: &Water,
@@ -731,6 +739,9 @@ fn rivers(
     };
     let mut basins = Basins::default();
     let mut out = Vec::new();
+    // The runs of courses through basin lakes, written after every Magna Urbis list (its own lake links are the
+    // last one), so a basin lake never renumbers the courses.
+    let mut links: Vec<RiverOut> = Vec::new();
     let mut above = Vec::new();
     for (kind, lines) in lists {
         for line in lines {
@@ -764,34 +775,52 @@ fn rivers(
             let n = pts.len();
             let before = out.len();
             // Pieces of the course, as inclusive index ranges into `pts`, upstream first.
-            let mut queue: VecDeque<(usize, usize)> = if n >= 2 { VecDeque::from([(0, n - 1)]) } else { VecDeque::new() };
+            // The third field is set on a lake link: the basin lake it runs through.
+            let mut queue: VecDeque<(usize, usize, Option<usize>)> =
+                if n >= 2 { VecDeque::from([(0, n - 1, None)]) } else { VecDeque::new() };
             // Basin lakes made from this course, given the id of the next piece written.
             let mut pending: Vec<usize> = Vec::new();
             let mut ended = false;
-            while let Some((s, e)) = queue.pop_front() {
+            while let Some((s, e, link)) = queue.pop_front() {
                 if e <= s {
                     continue;
                 }
                 let seg = &pts[s..=e];
+                if let Some(b) = link {
+                    // The course's run through basin lake `b`, at the lake's level.
+                    let level = basins.level[b];
+                    let points: Vec<[f64; 4]> = seg.iter().map(|p| [p[0], p[1], p[2], level]).collect();
+                    stats.river_km += points.windows(2).map(|w| (w[1][0] - w[0][0]).hypot(w[1][1] - w[0][1])).sum::<f64>() / 1000.0;
+                    stats.basin_links += 1;
+                    links.push(RiverOut { id: 0, kind: "lake_link", mu_id: line.id, joins: None, outlet: None, clipped: false, points });
+                    continue;
+                }
                 let xy = |k: usize| [seg[k][0], seg[k][1]];
                 let basin: Vec<Option<usize>> = (0..seg.len()).map(|k| basins.at(fit, xy(k))).collect();
                 if basin.iter().all(Option::is_some) {
                     continue;
                 }
                 // Points inside a basin lake split the piece: each run off basin lakes, with one lake point at
-                // either end where it meets one.
+                // either end where it meets one, and between two of them the run through the lake as a lake link
+                // (from the last point of the piece flowing in to the first of the piece flowing out).
                 if (1..seg.len() - 1).any(|k| basin[k].is_some()) {
                     let (mut k, mut subs) = (0, Vec::new());
                     while k < seg.len() {
-                        if basin[k].is_some() {
-                            k += 1;
+                        if let Some(b) = basin[k] {
+                            let i = k;
+                            while k < seg.len() && basin[k] == Some(b) {
+                                k += 1;
+                            }
+                            if i > 0 && k < seg.len() && k - i >= 2 {
+                                subs.push((s + i, s + k - 1, Some(b)));
+                            }
                             continue;
                         }
                         let i = k;
                         while k < seg.len() && basin[k].is_none() {
                             k += 1;
                         }
-                        subs.push((s + i.saturating_sub(1), s + k.min(seg.len() - 1)));
+                        subs.push((s + i.saturating_sub(1), s + k.min(seg.len() - 1), None));
                     }
                     for sub in subs.into_iter().rev() {
                         queue.push_front(sub);
@@ -828,7 +857,7 @@ fn rivers(
                             });
                             stats.basin_lakes += 1;
                             // Worked again: its points in the new lake split it.
-                            queue.push_front((s, e));
+                            queue.push_front((s, e, None));
                         }
                         Err(stop) => {
                             match stop {
@@ -843,7 +872,7 @@ fn rivers(
                             }
                             queue.clear();
                             if a >= 2 {
-                                queue.push_front((s, s + a - 1));
+                                queue.push_front((s, s + a - 1, None));
                             }
                             ended = true;
                         }
@@ -874,6 +903,10 @@ fn rivers(
                 stats.rivers_dropped += 1;
             }
         }
+    }
+    for mut link in links {
+        link.id = out.len();
+        out.push(link);
     }
     stats.points_floating = out
         .iter()
