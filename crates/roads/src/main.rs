@@ -1,4 +1,4 @@
-//! `worldgen-roads --guide <dir> --sites <sites.json> --recipe <toml> --out <roads.json>`.
+//! `worldgen-roads --guide <dir> --sites <sites.json> --recipe <toml> --out <roads.json> [--settled <key>=<streets.json>]...`.
 use clap::Parser;
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -19,6 +19,17 @@ struct Args {
     /// Output file (roads.json).
     #[arg(long)]
     out: PathBuf,
+    /// A laid-out site's settled streets (`settle`'s streets.json): its regional roads are cut where they meet them.
+    #[arg(long, value_name = "KEY=STREETS_JSON", value_parser = key_path)]
+    settled: Vec<(String, PathBuf)>,
+}
+
+/// `<key>=<path>`, split at the first `=`.
+fn key_path(arg: &str) -> Result<(String, PathBuf), String> {
+    match arg.split_once('=') {
+        Some((key, path)) if !key.is_empty() && !path.is_empty() => Ok((key.to_string(), PathBuf::from(path))),
+        _ => Err(format!("`{arg}`: want <key>=<streets.json>")),
+    }
 }
 
 fn run(args: &Args) -> Result<String, String> {
@@ -26,7 +37,9 @@ fn run(args: &Args) -> Result<String, String> {
     let text = std::fs::read_to_string(&args.recipe).map_err(|e| at(e.to_string()))?;
     let recipe = roads::Recipe::parse(&text).map_err(at)?;
     let sites = roads::SitesFile::load(&args.sites)?;
-    let run = roads::route(&args.guide, &sites, &recipe)?;
+    let settled =
+        args.settled.iter().map(|(key, path)| roads::Settled::load(key, path)).collect::<Result<Vec<_>, _>>()?;
+    let run = roads::route(&args.guide, &sites, &recipe, &settled)?;
     let json = roads::run::to_json(&run.file)?;
     if let Some(dir) = args.out.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;

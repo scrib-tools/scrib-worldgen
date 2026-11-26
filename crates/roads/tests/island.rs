@@ -8,7 +8,7 @@ use magna_urbis_core::settlements::roads::PROFILES;
 use magna_urbis_core::settlements::roads::profile::profile_for;
 use roads::raster::{LAKE, RIVER, SEA};
 use roads::run::PROFILE_CULTURE;
-use roads::{Recipe, SitesFile};
+use roads::{Recipe, Settled, SitesFile};
 use std::path::{Path, PathBuf};
 
 const N: usize = 256;
@@ -31,6 +31,7 @@ level = { value = "rural", unit = "level id", source = "Magna Urbis default" }
 sharing = { value = 0.7, unit = "0-1", source = "Magna Urbis default" }
 crossing_cost = { value = 1.0, unit = "x", source = "Magna Urbis default" }
 landing_search_m = { value = 400.0, unit = "m", source = "test: the lake's half width" }
+handover_m = { value = 8.0, unit = "m", source = "test" }
 profiles = { value = { dunmer = "medieval", imperial = "roman" }, unit = "culture -> profile id", source = "test" }
 "#;
 
@@ -107,7 +108,7 @@ fn island_roads_reach_every_site_and_cross_the_river() {
     let recipe = Recipe::parse(RECIPE).unwrap();
     let dir = guide_dir("roads-island");
     let sites = sites();
-    let run = roads::route(&dir, &sites, &recipe).unwrap();
+    let run = roads::route(&dir, &sites, &recipe, &[]).unwrap();
     println!("{}", run.summary);
     let (file, raster) = (&run.file, &run.raster);
 
@@ -176,7 +177,7 @@ fn island_roads_reach_every_site_and_cross_the_river() {
     }
 
     // Deterministic: the same file twice.
-    let again = roads::route(&dir, &sites, &recipe).unwrap();
+    let again = roads::route(&dir, &sites, &recipe, &[]).unwrap();
     assert_eq!(roads::run::to_json(file).unwrap(), roads::run::to_json(&again.file).unwrap());
 }
 
@@ -189,7 +190,7 @@ fn a_laid_out_site_keeps_its_roads_to_its_centre() {
     let dir = guide_dir("roads-laid-out");
     let mut sites = sites();
     sites.sites.iter_mut().find(|s| s.key == KEY).unwrap().laid_out = true;
-    let run = roads::route(&dir, &sites, &recipe).unwrap();
+    let run = roads::route(&dir, &sites, &recipe, &[]).unwrap();
     println!("{}", run.summary);
     let file = &run.file;
     let cell = file.routing_cell_m;
@@ -264,7 +265,96 @@ fn a_laid_out_site_keeps_its_roads_to_its_centre() {
 
     // The flag is written for the laid-out site only (files without it stay as they were).
     assert_eq!(roads::run::to_json(file).unwrap().matches("\"laid_out\": true").count(), 1);
-    assert!(!roads::run::to_json(&roads::route(&dir, &self::sites(), &recipe).unwrap().file).unwrap().contains("laid_out"));
+    assert!(!roads::run::to_json(&roads::route(&dir, &self::sites(), &recipe, &[]).unwrap().file).unwrap().contains("laid_out"));
+}
+
+/// A laid-out site whose streets are settled (one square ring round its centre): its regional roads stop on the ring,
+/// at `site` junctions of their own, and nothing of them runs along it; with no streets the file is as without.
+#[test]
+fn a_settled_site_hands_its_roads_to_its_streets() {
+    const KEY: &str = "east-a";
+    const HALF_SIDE_M: f64 = 100.0;
+    let recipe = Recipe::parse(RECIPE).unwrap();
+    let handover = recipe.handover_m.value;
+    let dir = guide_dir("roads-settled");
+    let mut sites = sites();
+    sites.sites.iter_mut().find(|s| s.key == KEY).unwrap().laid_out = true;
+    let [cx, cy] = sites.sites.iter().find(|s| s.key == KEY).unwrap().centre_m;
+    let ring = vec![
+        [cx - HALF_SIDE_M, cy - HALF_SIDE_M],
+        [cx + HALF_SIDE_M, cy - HALF_SIDE_M],
+        [cx + HALF_SIDE_M, cy + HALF_SIDE_M],
+        [cx - HALF_SIDE_M, cy + HALF_SIDE_M],
+        [cx - HALF_SIDE_M, cy - HALF_SIDE_M],
+    ];
+    let settled = |streets: Vec<Vec<[f64; 2]>>| vec![Settled { key: KEY.into(), streets }];
+    let a = roads::route(&dir, &sites, &recipe, &[]).unwrap();
+    let b = roads::route(&dir, &sites, &recipe, &settled(vec![ring.clone()])).unwrap();
+    println!("{}\n{}", a.summary, b.summary);
+    let tol = 1e-6;
+    let dist = |p: [f64; 2], q: [f64; 2]| (p[0] - q[0]).hypot(p[1] - q[1]);
+    let to_ring = |p: [f64; 2]| ring_distance(&ring, p);
+    let key_junctions = |f: &roads::RoadsFile| -> Vec<usize> {
+        f.junctions.iter().filter(|j| j.sites.iter().any(|k| k == KEY)).map(|j| j.id).collect()
+    };
+    // Segment ends (segment, end 0 or 1) at junction `j`.
+    let ends_at = |f: &roads::RoadsFile, j: usize| -> Vec<(usize, usize)> {
+        f.segments.iter().flat_map(|g| [(g.id, 0, g.a), (g.id, 1, g.b)]).filter(|e| e.2 == j).map(|e| (e.0, e.1)).collect()
+    };
+
+    let file = &b.file;
+    assert!(file.unreachable.is_empty(), "unreachable: {:?}", file.unreachable);
+    let town = file.sites.iter().find(|s| s.key == KEY).unwrap();
+    let routed = town.landing.unwrap_or(town.centre_m);
+    let js = key_junctions(file);
+    assert!(!js.is_empty(), "{KEY}: no junction");
+    let mut on_key: Vec<(usize, usize)> = Vec::new();
+    for &j in &js {
+        let jn = &file.junctions[j];
+        assert_eq!(jn.kind, "site", "{KEY}: junction {j}");
+        assert!(to_ring(jn.pos) < tol, "{KEY}: junction {j} {:.3} m off the ring", to_ring(jn.pos));
+        assert!(dist(jn.pos, routed) > HALF_SIDE_M / 2.0, "{KEY}: junction {j} at the routed point");
+        for (g, e) in ends_at(file, j) {
+            let seg = &file.segments[g];
+            let end = if e == 0 { seg.points[0] } else { *seg.points.last().unwrap() };
+            assert!(dist(end, jn.pos) < tol, "{KEY}: segment {g} ends {:.3} m off junction {j}", dist(end, jn.pos));
+            assert!(seg.trimmed_m[e] >= 50.0, "{KEY}: segment {g} end {e} trimmed {:.1} m", seg.trimmed_m[e]);
+            on_key.push((g, e));
+        }
+    }
+    // Nothing runs along the ring: no point in its band, but the contact sample and the snap vertex at a KEY end.
+    for g in &file.segments {
+        let n = g.points.len();
+        for (i, &p) in g.points.iter().enumerate() {
+            let at_key_end = (i < 2 && on_key.contains(&(g.id, 0))) || (i + 2 >= n && on_key.contains(&(g.id, 1)));
+            assert!(at_key_end || to_ring(p) >= handover, "segment {} point {i} {:.2} m from the ring", g.id, to_ring(p));
+        }
+    }
+    // No road lost: as many ends on the ring as roads reached the routed point without streets.
+    let routed_ends: usize = key_junctions(&a.file).iter().map(|&j| ends_at(&a.file, j).len()).sum();
+    println!("{KEY}: {routed_ends} segment ends at the routed point without streets, {} on the ring with them", on_key.len());
+    assert!(on_key.len() >= routed_ends, "{KEY}: {} ends on the ring, {routed_ends} at the routed point", on_key.len());
+
+    // No streets: the same file as without settled streets.
+    let none = roads::route(&dir, &sites, &recipe, &settled(vec![])).unwrap();
+    assert_eq!(roads::run::to_json(&none.file).unwrap(), roads::run::to_json(&a.file).unwrap());
+
+    // Refused: a key that is no site, a site that is not laid out.
+    let err = |key: &str| roads::route(&dir, &sites, &recipe, &[Settled { key: key.into(), streets: vec![ring.clone()] }]).err();
+    assert!(err("nowhere").is_some_and(|e| e.contains("nowhere")));
+    assert!(err("west-a").is_some_and(|e| e.contains("west-a")));
+}
+
+/// Distance (m) from `p` to the polyline `ring`.
+fn ring_distance(ring: &[[f64; 2]], p: [f64; 2]) -> f64 {
+    ring.windows(2)
+        .map(|w| {
+            let (a, b) = (w[0], w[1]);
+            let (dx, dy) = (b[0] - a[0], b[1] - a[1]);
+            let t = (((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / (dx * dx + dy * dy)).clamp(0.0, 1.0);
+            (p[0] - a[0] - t * dx).hypot(p[1] - a[1] - t * dy)
+        })
+        .fold(f64::INFINITY, f64::min)
 }
 
 #[test]
@@ -272,7 +362,7 @@ fn a_culture_without_a_profile_is_refused() {
     let recipe = Recipe::parse(RECIPE).unwrap();
     let mut sites = sites();
     sites.sites[0].culture = "khajiit".into();
-    let err = roads::route(&guide_dir("roads-culture"), &sites, &recipe).err().unwrap();
+    let err = roads::route(&guide_dir("roads-culture"), &sites, &recipe, &[]).err().unwrap();
     assert!(err.contains("khajiit"), "{err}");
 }
 

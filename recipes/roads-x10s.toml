@@ -49,6 +49,11 @@ value = 2000.0
 unit = "m (largest move of a site's wet centre to its nearest dry routing cell, the landing roads end at)"
 source = "Guess: water towns (Vivec's cantons, Molag Mar, Tel Mora, Dagon Fel, Gnaar Mok, Tel Fyr) stand within a scaled kilometre or two of their shore"
 
+[handover_m]
+value = 8.0
+unit = "m (a regional road nearer than this to a settled town's street is on that street)"
+source = "Guess: half a regional road (3 m) + half a town street (3 m) + the 2 m sample step; measured 2026-11-26: 4 m breaks the contact into 6-11 runs, 12 m starts 40 m early"
+
 [profiles]
 unit = "sites.json culture -> Magna Urbis road profile id (roads/profile.rs:29)"
 source = "Guess: Dunmer great-house towns wind like medieval roads; Imperial roads are straight and paved (roman); Telvanni follow the contours (elven); Ashlander tracks are narrow and steep (tribal); Dwemer roads are straight and climb hard (dwarven)"

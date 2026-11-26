@@ -1,9 +1,10 @@
 //! One run: guide + water + sites + recipe -> landings for wet site centres -> Magna Urbis `Terrain::roads`
 //! (`settlements/mod.rs:506`) -> roads cut back to the sites' edges (`crate::ends`) -> `roads.json`.
-use crate::ends::{self, Extent, Landing};
+use crate::ends::{self, Extent, Landing, Piece};
 use crate::guide::Guide;
 use crate::raster::{Frame, MuRaster};
 use crate::recipe::{Recipe, pool_block};
+use crate::settled::Settled;
 use crate::sites::SitesFile;
 use crate::water::WaterFile;
 use magna_urbis_core::settlements::roads::{ExitCounts, RoadConfig, RoadOutput, RoadSite};
@@ -200,11 +201,26 @@ pub struct Run {
     pub summary: Summary,
 }
 
-/// Route the roads between `sites` on the guide folder `guide_dir` (and its `water.json`, if any).
+/// Route the roads between `sites` on the guide folder `guide_dir` (and its `water.json`, if any). Each of `settled`
+/// names a laid-out site whose streets are already laid out: its regional roads are cut where they meet them.
 ///
 /// # Errors
-/// Unreadable inputs, a site outside the guide or with an unmapped culture, Magna Urbis's own errors.
-pub fn route(guide_dir: &Path, sites: &SitesFile, recipe: &Recipe) -> Result<Run, String> {
+/// Unreadable inputs, a site outside the guide or with an unmapped culture, a `settled` key that is not a laid-out
+/// site or comes twice, Magna Urbis's own errors.
+pub fn route(guide_dir: &Path, sites: &SitesFile, recipe: &Recipe, settled: &[Settled]) -> Result<Run, String> {
+    let mut streets: Vec<Streets> = Vec::with_capacity(settled.len());
+    for t in settled {
+        let Some(i) = sites.sites.iter().position(|s| s.key == t.key) else {
+            return Err(format!("settled `{}`: no such site", t.key));
+        };
+        if !sites.sites[i].laid_out {
+            return Err(format!("settled `{}`: the site is not laid out", t.key));
+        }
+        if streets.iter().any(|&(j, _)| j == i) {
+            return Err(format!("settled `{}` twice", t.key));
+        }
+        streets.push((i, t.streets.as_slice()));
+    }
     let guide = Guide::load(guide_dir)?;
     let water = WaterFile::load(&guide_dir.join("water.json"))?;
     let raster = MuRaster::build(&guide, water.as_ref(), recipe.raster_n.value, recipe.pad_depth_m.value);
@@ -232,7 +248,7 @@ pub fn route(guide_dir: &Path, sites: &SitesFile, recipe: &Recipe) -> Result<Run
             laid_out: s.laid_out,
         })
         .collect();
-    let mut file = convert(&out, &frame, recipe, routing_cell_m, site_out);
+    let mut file = convert(&out, &frame, recipe, routing_cell_m, site_out, &streets);
     for (s, _) in sites.sites.iter().zip(&landings).filter(|(_, l)| **l == Landing::Stranded) {
         file.warnings.push(format!(
             "site `{}`: centre on water, no dry routing cell within {} m: routed from the water",
@@ -273,31 +289,128 @@ enum End {
     Cut(usize, [f64; 2]),
 }
 
-/// Magna Urbis's network in the guide frame, cut back to the edges of the sites not laid out (`ends::clip`): each cut
-/// end gets a `site` junction of its own on the edge, a crossing goes with the piece nearest its middle point (dropped
-/// when that point is inside such a site), routed junctions no segment ends at any more are dropped, and ids are
-/// renumbered. A laid-out site takes no part in the cut: its roads keep their routed junction at its routed point.
-fn convert(out: &RoadOutput, frame: &Frame, recipe: &Recipe, routing_cell_m: f64, sites: Vec<SiteOut>) -> RoadsFile {
+/// A settled site's index in `sites` and its streets.
+type Streets<'a> = (usize, &'a [Vec<[f64; 2]>]);
+
+/// A piece of one routed segment and, per end, the id of the street cut that made that end (the head and tail of one
+/// `ends::clip_at_streets` call share it), `None` for an end that is not a street cut.
+struct Handed {
+    piece: Piece,
+    street: [Option<usize>; 2],
+}
+
+/// The pieces of one routed segment (cut indices are site indices) cut at each settled site's streets in turn
+/// (`ends::clip_at_streets`; a sub-piece end that is its parent's end keeps the parent's cut and trim). A piece from a
+/// street cut of site X to the segment's own routed end at X (`labels`: the site labels of the routed junctions `a`
+/// and `b`) runs inside X and is dropped, its length added to its sibling's `trimmed_m` at the sibling's street-cut
+/// end. Also says whether any street cut was made.
+fn hand_over(
+    pieces: Vec<Piece>,
+    settled: &[Streets],
+    handover_m: f64,
+    sites: &[SiteOut],
+    labels: [Option<&str>; 2],
+) -> (Vec<Piece>, bool) {
+    let mut handed: Vec<Handed> = pieces.into_iter().map(|piece| Handed { piece, street: [None, None] }).collect();
+    let mut cuts = 0;
+    for &(site, streets) in settled {
+        let mut next = Vec::with_capacity(handed.len());
+        for parent in handed {
+            let subs = ends::clip_at_streets(&parent.piece.points, site, streets, handover_m);
+            if subs.len() == 1 && subs[0].cut == [None, None] {
+                next.push(parent);
+                continue;
+            }
+            for mut sub in subs {
+                let mut street = [Some(cuts); 2];
+                for (e, end) in street.iter_mut().enumerate() {
+                    if sub.cut[e].is_none() {
+                        sub.cut[e] = parent.piece.cut[e];
+                        sub.trimmed_m[e] = parent.piece.trimmed_m[e];
+                        *end = parent.street[e];
+                    }
+                }
+                next.push(Handed { piece: sub, street });
+            }
+            cuts += 1;
+        }
+        handed = next;
+    }
+    if cuts == 0 {
+        return (handed.into_iter().map(|h| h.piece).collect(), false);
+    }
+    // Per piece: (street cut id, length) when it runs from a street cut to its own site's routed junction.
+    let own: Vec<Option<(usize, f64)>> = handed
+        .iter()
+        .map(|h| {
+            (0..2).find_map(|e| {
+                let (k, site) = (h.street[e]?, h.piece.cut[e]?);
+                let routed = 1 - e;
+                let to_own = h.piece.cut[routed].is_none() && labels[routed] == Some(sites[site].key.as_str());
+                to_own.then(|| (k, ends::length(&h.piece.points)))
+            })
+        })
+        .collect();
+    let mut kept: Vec<Handed> = handed.into_iter().zip(&own).filter(|(_, o)| o.is_none()).map(|(h, _)| h).collect();
+    for &(k, len) in own.iter().flatten() {
+        for h in &mut kept {
+            for e in 0..2 {
+                if h.street[e] == Some(k) {
+                    h.piece.trimmed_m[e] += len;
+                }
+            }
+        }
+    }
+    (kept.into_iter().map(|h| h.piece).collect(), true)
+}
+
+/// `crossings` per piece of `pieces`: each goes with the piece nearest its middle point, unless `dropped(middle point,
+/// distance to that piece)`; a crossing with no points or no piece to go with is dropped.
+fn assign_crossings(
+    pieces: &[Piece],
+    crossings: impl Iterator<Item = CrossingOut>,
+    dropped: impl Fn([f64; 2], f64) -> bool,
+) -> Vec<Vec<CrossingOut>> {
+    let mut out: Vec<Vec<CrossingOut>> = vec![Vec::new(); pieces.len()];
+    for c in crossings {
+        let Some(&mid) = c.points.get(c.points.len() / 2) else { continue };
+        let near = (0..pieces.len())
+            .map(|i| (i, ends::distance_to(&pieces[i].points, mid)))
+            .min_by(|a, b| a.1.total_cmp(&b.1));
+        if let Some((i, _)) = near.filter(|&(_, d)| !dropped(mid, d)) {
+            out[i].push(c);
+        }
+    }
+    out
+}
+
+/// Magna Urbis's network in the guide frame, cut back to the edges of the sites not laid out (`ends::clip`) and then at
+/// the streets of the settled sites (`hand_over`): each cut end gets a `site` junction of its own on the edge or the
+/// street, a crossing goes with the piece nearest its middle point (dropped when that point is inside a site not laid
+/// out, or, on a segment cut at streets, farther than `handover_m` from every piece left: the streets carry it),
+/// routed junctions no segment ends at any more are dropped, and ids are renumbered. A laid-out site takes no part in
+/// the disc cut: its roads keep their routed junction at its routed point, unless it is settled.
+fn convert(out: &RoadOutput, frame: &Frame, recipe: &Recipe, routing_cell_m: f64, sites: Vec<SiteOut>, settled: &[Streets]) -> RoadsFile {
     let pts = |path: &[Point]| path.iter().map(|&p| frame.to_guide(p)).collect::<Vec<_>>();
     let (kept, extents) = cut_extents(&sites);
     let in_site = |p: [f64; 2]| extents.iter().any(|e| std::iter::once(e.centre).chain(e.landing).any(|c| ends::dist(p, c) < e.radius));
+    let handover_m = recipe.handover_m.value;
     let mut segments: Vec<SegmentOut> = Vec::new();
     let mut seg_ends: Vec<[End; 2]> = Vec::new();
     for s in &out.segments {
-        let pieces = ends::clip(&pts(&s.path), &extents);
-        let mut crossings: Vec<Vec<CrossingOut>> = vec![Vec::new(); pieces.len()];
-        for c in &s.crossings {
-            let path = pts(&c.path);
-            let Some(&mid) = path.get(path.len() / 2) else { continue };
-            let near = (0..pieces.len()).min_by(|&i, &j| {
-                ends::distance_to(&pieces[i].points, mid).total_cmp(&ends::distance_to(&pieces[j].points, mid))
-            });
-            if let (Some(i), false) = (near, in_site(mid)) {
-                crossings[i].push(CrossingOut { kind: c.kind.clone(), points: path });
-            }
+        let mut pieces = ends::clip(&pts(&s.path), &extents);
+        for piece in &mut pieces {
+            piece.cut = piece.cut.map(|c| c.map(|e| kept[e]));
         }
+        let mut street_cut = false;
+        if !settled.is_empty() {
+            let labels = [out.junctions[s.a].site.as_deref(), out.junctions[s.b].site.as_deref()];
+            (pieces, street_cut) = hand_over(pieces, settled, handover_m, &sites, labels);
+        }
+        let crossings = s.crossings.iter().map(|c| CrossingOut { kind: c.kind.clone(), points: pts(&c.path) });
+        let crossings = assign_crossings(&pieces, crossings, |mid, d| in_site(mid) || (street_cut && d > handover_m));
         for (piece, crossings) in pieces.into_iter().zip(crossings) {
-            let end = |cut: Option<usize>, routed: usize, p: [f64; 2]| cut.map_or(End::Routed(routed), |e| End::Cut(kept[e], p));
+            let end = |cut: Option<usize>, routed: usize, p: [f64; 2]| cut.map_or(End::Routed(routed), |site| End::Cut(site, p));
             let (first, last) = (piece.points[0], piece.points[piece.points.len() - 1]);
             seg_ends.push([end(piece.cut[0], s.a, first), end(piece.cut[1], s.b, last)]);
             segments.push(SegmentOut {

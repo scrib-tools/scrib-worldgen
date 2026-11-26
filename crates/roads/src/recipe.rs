@@ -40,6 +40,9 @@ pub struct Recipe {
     /// Largest distance (m) from a site's wet centre to the dry routing cell it is routed from instead (its landing,
     /// `crate::ends::landing`); farther, the site is not routed from land.
     pub landing_search_m: Tunable<f64>,
+    /// Distance (m) under which a regional road is on a settled town's street (`crate::ends::clip_at_streets`): the
+    /// road is cut at its first and last contact and joins the street there.
+    pub handover_m: Tunable<f64>,
 }
 
 fn check<T>(name: &str, t: &Tunable<T>, ok: bool, want: &str) -> Result<(), String> {
@@ -92,6 +95,8 @@ impl Recipe {
         check("level", &self.level, level, "a Magna Urbis level id (primitive, rural, developed, imperial)")?;
         let search = self.landing_search_m.value;
         check("landing_search_m", &self.landing_search_m, search.is_finite() && search >= 0.0, "0 or more")?;
+        let handover = self.handover_m.value;
+        check("handover_m", &self.handover_m, handover > 0.0 && handover <= 50.0, "more than 0, at most 50")?;
         check("profiles", &self.profiles, !self.profiles.value.is_empty(), "at least one culture")?;
         if let Some((culture, id)) = self.profiles.value.iter().find(|(_, id)| !PROFILES.iter().any(|p| p.id == id.as_str())) {
             let ids: Vec<&str> = PROFILES.iter().map(|p| p.id).collect();

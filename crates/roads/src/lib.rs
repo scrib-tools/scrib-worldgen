@@ -9,6 +9,7 @@ pub mod guide;
 pub mod raster;
 pub mod recipe;
 pub mod run;
+pub mod settled;
 pub mod sites;
 pub mod water;
 
@@ -16,5 +17,6 @@ pub use guide::Guide;
 pub use raster::{Frame, MuRaster};
 pub use recipe::Recipe;
 pub use run::{RoadsFile, Summary, route};
+pub use settled::Settled;
 pub use sites::SitesFile;
 pub use water::WaterFile;
